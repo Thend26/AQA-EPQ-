@@ -35,7 +35,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const parsed = studentUpdateSchema.safeParse(body);
     if (!parsed.success) {
-      return validationError(parsed.error);
+      return validationError(parsed.error, "Invalid student data");
     }
 
     const { data, error } = await updateStudent(

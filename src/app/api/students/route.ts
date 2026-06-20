@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
     const parsed = studentInputSchema.safeParse(body);
     if (!parsed.success) {
-      return validationError(parsed.error);
+      return validationError(parsed.error, "Invalid student data");
     }
 
     const { data, error } = await createStudent(

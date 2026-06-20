@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   dailyRecordSchema,
   studentSchema,
+  studentUpdateSchema,
   type DailyRecordInput,
   type StudentInput,
 } from "@/lib/domain/types";
@@ -107,5 +108,23 @@ describe("studentSchema", () => {
       backgroundNotes: "",
       currentFocus: "",
     });
+  });
+});
+
+describe("studentUpdateSchema", () => {
+  it("accepts a strict partial student update", () => {
+    expect(studentUpdateSchema.parse({ currentFocus: "Refine sources" })).toEqual({
+      currentFocus: "Refine sources",
+    });
+  });
+
+  it("rejects empty updates and unknown owner fields", () => {
+    expect(studentUpdateSchema.safeParse({}).success).toBe(false);
+    expect(
+      studentUpdateSchema.safeParse({
+        currentFocus: "Refine sources",
+        ownerId: "attacker",
+      }).success,
+    ).toBe(false);
   });
 });

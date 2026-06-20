@@ -7,9 +7,12 @@ export function apiError(message: string, status: ApiErrorStatus) {
   return NextResponse.json({ error: message }, { status });
 }
 
-export function validationError(error: z.ZodError) {
+export function validationError(
+  error: z.ZodError,
+  message = "Invalid data",
+) {
   return NextResponse.json(
-    { error: "Invalid student data", issues: error.issues },
+    { error: message, issues: error.issues },
     { status: 400 },
   );
 }

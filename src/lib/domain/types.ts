@@ -48,6 +48,6 @@ export const dailyRecordSchema = z.object({
   ao2Note: z.string().max(2000).default(""),
   ao3Note: z.string().max(2000).default(""),
   ao4Note: z.string().max(2000).default(""),
-});
+}).strict();
 export type DailyRecordInput = z.input<typeof dailyRecordSchema>;
 export type DailyRecord = z.output<typeof dailyRecordSchema>;
