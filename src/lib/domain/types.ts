@@ -12,7 +12,22 @@ export const studentSchema = z.object({
   backgroundNotes: z.string().max(2000).default(""),
   currentFocus: z.string().max(1000).default(""),
 });
-export type StudentInput = z.input<typeof studentSchema>;
+export const studentInputSchema = studentSchema
+  .omit({ id: true })
+  .extend({
+    backgroundNotes: z.string().max(2000).optional(),
+    currentFocus: z.string().max(1000).optional(),
+  })
+  .strict();
+export const studentUpdateSchema = studentInputSchema
+  .partial()
+  .strict()
+  .refine((input) => Object.keys(input).length > 0, {
+    message: "At least one student field is required",
+  });
+export type StudentInput = z.input<typeof studentInputSchema>;
+export type StudentUpdateInput = z.input<typeof studentUpdateSchema>;
+export type StudentProfile = z.output<typeof studentInputSchema>;
 export type Student = z.output<typeof studentSchema>;
 
 export const dailyRecordSchema = z.object({
