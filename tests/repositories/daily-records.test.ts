@@ -2,11 +2,17 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  DailyRecordConflictError,
   dailyRecordUpsert,
   getDailyRecord,
   upsertDailyRecord,
   verifyStudentOwnership,
 } from "@/lib/repositories/daily-records";
+
+const { createAdminClient } = vi.hoisted(() => ({
+  createAdminClient: vi.fn(),
+}));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient }));
 
 const input = {
   studentId: "123e4567-e89b-42d3-a456-426614174000",
@@ -23,6 +29,17 @@ const input = {
   ao3Note: "",
   ao4Note: "",
 };
+
+function ownedStudentDb() {
+  const maybeSingle = vi.fn().mockResolvedValue({
+    data: { id: input.studentId },
+    error: null,
+  });
+  const ownerEq = vi.fn(() => ({ maybeSingle }));
+  const studentEq = vi.fn(() => ({ eq: ownerEq }));
+  const select = vi.fn(() => ({ eq: studentEq }));
+  return { from: vi.fn(() => ({ select })) } as unknown as SupabaseClient;
+}
 
 describe("owner-scoped daily record queries", () => {
   test("upsert payload refreshes updated_at", () => {
@@ -83,56 +100,63 @@ describe("owner-scoped daily record queries", () => {
     expect(recordSelect).not.toHaveBeenCalled();
   });
 
-  test("confirms the student belongs to the owner before upserting", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-    const ownerEq = vi.fn(() => ({ maybeSingle }));
-    const studentEq = vi.fn(() => ({ eq: ownerEq }));
-    const select = vi.fn(() => ({ eq: studentEq }));
-    const upsert = vi.fn();
-    const db = {
-      from: vi.fn((table: string) =>
-        table === "students" ? { select } : { upsert },
-      ),
-    } as unknown as SupabaseClient;
+  test("uses the service-role RPC with expected revision", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: "323e4567-e89b-42d3-a456-426614174000",
+          owner_id: "owner-123",
+          student_id: input.studentId,
+          record_date: input.recordDate,
+          camp_day: input.campDay,
+          achievements: input.achievements,
+          evidence: input.evidence,
+          challenges: input.challenges,
+          next_plan: input.nextPlan,
+          process_notes: input.processNotes,
+          behavior_tags: input.behaviorTags,
+          ao1_note: input.ao1Note,
+          ao2_note: input.ao2Note,
+          ao3_note: input.ao3Note,
+          ao4_note: input.ao4Note,
+          revision: 3,
+        },
+      ],
+      error: null,
+    });
+    createAdminClient.mockReturnValue({ rpc });
 
-    const result = await upsertDailyRecord(db, "owner-123", input);
+    const result = await upsertDailyRecord(
+      ownedStudentDb(),
+      "owner-123",
+      input,
+      2,
+    );
 
-    expect(studentEq).toHaveBeenCalledWith("id", input.studentId);
-    expect(ownerEq).toHaveBeenCalledWith("owner_id", "owner-123");
-    expect(result.notFound).toBe(true);
-    expect(upsert).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith(
+      "save_daily_record",
+      expect.objectContaining({
+        p_owner_id: "owner-123",
+        p_student_id: input.studentId,
+        p_record_date: input.recordDate,
+        p_expected_revision: 2,
+      }),
+    );
+    expect(result.data?.revision).toBe(3);
   });
 
-  test("uses only the authenticated owner and server-generated record id", async () => {
-    const studentMaybeSingle = vi
-      .fn()
-      .mockResolvedValue({ data: { id: input.studentId }, error: null });
-    const studentOwnerEq = vi.fn(() => ({ maybeSingle: studentMaybeSingle }));
-    const studentIdEq = vi.fn(() => ({ eq: studentOwnerEq }));
-    const studentSelect = vi.fn(() => ({ eq: studentIdEq }));
-    const single = vi.fn().mockResolvedValue({ data: null, error: null });
-    const recordSelect = vi.fn(() => ({ single }));
-    const upsert = vi.fn((values: unknown, options: unknown) => {
-      void values;
-      void options;
-      return { select: recordSelect };
+  test("returns a typed conflict when the RPC returns no row", async () => {
+    createAdminClient.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     });
-    const db = {
-      from: vi.fn((table: string) =>
-        table === "students" ? { select: studentSelect } : { upsert },
-      ),
-    } as unknown as SupabaseClient;
 
-    await upsertDailyRecord(db, "owner-123", input);
-
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        owner_id: "owner-123",
-        student_id: input.studentId,
-        record_date: input.recordDate,
-      }),
-      { onConflict: "student_id,record_date" },
+    const result = await upsertDailyRecord(
+      ownedStudentDb(),
+      "owner-123",
+      input,
+      null,
     );
-    expect(upsert.mock.calls[0][0]).not.toHaveProperty("id");
+
+    expect(result.error).toBeInstanceOf(DailyRecordConflictError);
   });
 });

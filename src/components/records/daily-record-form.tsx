@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { AoObservations } from "@/components/records/ao-observations";
 import { useQueuedAutosave } from "@/components/records/use-queued-autosave";
@@ -30,7 +30,7 @@ type DailyRecordFormProps = {
   onDraftChange?: (draft: DailyRecordObservationDraft) => void;
 };
 
-export type SavedDailyRecord = DailyRecord & { id: string };
+export type SavedDailyRecord = DailyRecord & { id: string; revision?: number };
 
 const behaviorTagOptions = [
   "主动提问",
@@ -74,11 +74,14 @@ function formValues(record?: DailyRecord | null): DailyRecordDraftValues {
   };
 }
 
-async function saveDailyRecord(record: DailyRecord) {
+async function saveDailyRecord(
+  record: DailyRecord,
+  expectedRevision: number | null,
+) {
   const response = await fetch("/api/daily-records", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(record),
+    body: JSON.stringify({ ...record, expectedRevision }),
   });
 
   if (!response.ok) {
@@ -98,7 +101,7 @@ function DailyRecordFormFields({
   studentId,
   date,
   initialValue,
-  save = saveDailyRecord,
+  save,
   onSaved,
   onDraftChange,
 }: DailyRecordFormProps) {
@@ -121,6 +124,10 @@ function DailyRecordFormFields({
     useState<DailyRecordDraftValues>(initialValues);
   const [revision, setRevision] = useState(0);
   const revisionRef = useRef(0);
+  const serverRevisionRef = useRef(
+    (initialValue as (DailyRecord & { revision?: number }) | null | undefined)
+      ?.revision ?? null,
+  );
 
   function replaceValues(next: DailyRecordDraftValues) {
     const revision = revisionRef.current + 1;
@@ -160,15 +167,32 @@ function DailyRecordFormFields({
     });
     return parsed.success ? parsed.data : null;
   }, [date, studentId, values]);
-  const status = useQueuedAutosave({
+  const saveRecord = useCallback(
+    async (nextRecord: DailyRecord) => {
+      if (save) return save(nextRecord);
+      return saveDailyRecord(nextRecord, serverRevisionRef.current);
+    },
+    [save],
+  );
+  const { status, retry } = useQueuedAutosave({
     identity: key,
     draftIdentity,
     storage,
     revision,
     values,
     record,
-    save,
-    onSaved,
+    save: saveRecord,
+    onSaved: (result, snapshot) => {
+      if (
+        result &&
+        typeof result === "object" &&
+        "revision" in result &&
+        typeof result.revision === "number"
+      ) {
+        serverRevisionRef.current = Number(result.revision);
+      }
+      onSaved?.(result, snapshot);
+    },
   });
 
   return (
@@ -255,7 +279,12 @@ function DailyRecordFormFields({
       {status === "pending" ? <p role="status">正在保存</p> : null}
       {status === "saved" ? <p role="status">已保存</p> : null}
       {status === "failure" ? (
-        <p role="alert">保存失败，稍后重试</p>
+        <div role="alert">
+          <p>保存失败或记录已被更新，请重试；若仍失败请刷新页面。</p>
+          <button type="button" onClick={retry}>
+            立即重试
+          </button>
+        </div>
       ) : null}
     </form>
   );

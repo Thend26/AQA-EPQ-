@@ -1,0 +1,22 @@
+-- Anonymous development seed template.
+-- Replace 00000000-0000-0000-0000-000000000000 with the UUID of a private
+-- Supabase Auth test user, then uncomment the statement. Never use real student
+-- names or personal information in development or E2E data.
+
+-- insert into public.students (
+--   owner_id,
+--   display_name,
+--   grade,
+--   project_title,
+--   camp_start_date,
+--   background_notes,
+--   current_focus
+-- ) values (
+--   '00000000-0000-0000-0000-000000000000',
+--   '林同学',
+--   '10',
+--   '短视频使用与青少年注意力（匿名示例）',
+--   '2026-07-16',
+--   '仅用于开发测试的虚构档案',
+--   '比较不同来源的研究方法'
+-- );

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/api/auth";
 import { apiError, validationError } from "@/lib/api/responses";
 import { dailyRecordSchema } from "@/lib/domain/types";
 import {
+  DailyRecordConflictError,
   getDailyRecord,
   upsertDailyRecord,
 } from "@/lib/repositories/daily-records";
@@ -13,6 +14,9 @@ const dailyRecordQuerySchema = z.object({
   studentId: z.string().uuid(),
   date: z.string().date(),
 }).strict();
+const dailyRecordSaveSchema = dailyRecordSchema.extend({
+  expectedRevision: z.number().int().min(0).nullable(),
+});
 
 export async function GET(request: Request) {
   try {
@@ -63,16 +67,21 @@ export async function PUT(request: Request) {
       return apiError("Invalid JSON", 400);
     }
 
-    const parsed = dailyRecordSchema.safeParse(body);
+    const parsed = dailyRecordSaveSchema.safeParse(body);
     if (!parsed.success) {
       return validationError(parsed.error, "Invalid daily record data");
     }
 
+    const { expectedRevision, ...record } = parsed.data;
     const { data, error, notFound } = await upsertDailyRecord(
       auth.db,
       auth.user.id,
-      parsed.data,
+      record,
+      expectedRevision,
     );
+    if (error instanceof DailyRecordConflictError) {
+      return apiError("Daily record changed; refresh before saving", 409);
+    }
     if (error) {
       return apiError("Failed to save daily record", 500);
     }

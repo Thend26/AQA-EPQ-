@@ -11,6 +11,10 @@ import {
 import type { DailyRecord } from "@/lib/domain/types";
 
 export type SaveStatus = "idle" | "pending" | "saved" | "failure";
+export type AutosaveState = {
+  status: SaveStatus;
+  retry: () => void;
+};
 
 type SaveJob = {
   identity: string;
@@ -46,7 +50,7 @@ export function useQueuedAutosave<TResult>({
   record,
   save,
   onSaved,
-}: UseQueuedAutosaveOptions<TResult>): SaveStatus {
+}: UseQueuedAutosaveOptions<TResult>): AutosaveState {
   const [settled, setSettled] = useState<{
     revision: number;
     status: "saved" | "failure";
@@ -155,11 +159,17 @@ export function useQueuedAutosave<TResult>({
     return () => window.clearTimeout(timeout);
   }, [enqueueSave, identity, record, revision, values]);
 
+  const retry = useCallback(() => {
+    if (!record || !activeRef.current) return;
+    setSettled(null);
+    enqueueSave({ identity, revision, record, values });
+  }, [enqueueSave, identity, record, revision, values]);
+
   if (!record) {
-    return "idle";
+    return { status: "idle", retry };
   }
   if (settled?.revision === revision) {
-    return settled.status;
+    return { status: settled.status, retry };
   }
-  return "pending";
+  return { status: "pending", retry };
 }

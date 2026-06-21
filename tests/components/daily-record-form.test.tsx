@@ -266,9 +266,12 @@ test("serializes saves and sends the latest queued snapshot after completion", a
   expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toBeNull();
 });
 
-test("keeps typed values and the local draft when autosave fails", async () => {
+test("keeps the draft and retries the same snapshot after autosave fails", async () => {
   vi.useFakeTimers();
-  const save = vi.fn().mockRejectedValue(new Error("offline"));
+  const save = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValueOnce(undefined);
   render(
     <DailyRecordForm
       ownerId={ownerId}
@@ -290,10 +293,22 @@ test("keeps typed values and the local draft when autosave fails", async () => {
   });
 
   expect(screen.getByLabelText("今日完成成果")).toHaveValue("筛选了四篇文献");
-  expect(screen.getByRole("alert")).toHaveTextContent("保存失败，稍后重试");
+  expect(screen.getByRole("alert")).toHaveTextContent("保存失败");
   expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toContain(
     "筛选了四篇文献",
   );
+
+  fireEvent.click(screen.getByRole("button", { name: "立即重试" }));
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(save.mock.calls[1][0]).toMatchObject({
+    achievements: "筛选了四篇文献",
+    nextPlan: "比较研究方法",
+  });
+  expect(screen.getByRole("status")).toHaveTextContent("已保存");
 });
 
 test("cancels the old debounce when switching student or date", async () => {

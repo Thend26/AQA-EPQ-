@@ -55,6 +55,30 @@ type FeedbackMessageRow = {
   created_at: string;
 };
 
+type FeedbackGroundingRecordRow = {
+  id: string;
+  achievements: string;
+  evidence: string;
+  process_notes: string;
+  ao1_note: string;
+  ao2_note: string;
+  ao3_note: string;
+  ao4_note: string;
+  next_plan: string;
+};
+
+export type FeedbackGroundingRecord = {
+  id: string;
+  achievements: string;
+  evidence: string;
+  processNotes: string;
+  ao1Note: string;
+  ao2Note: string;
+  ao3Note: string;
+  ao4Note: string;
+  nextPlan: string;
+};
+
 export type StoredFeedback = {
   id: string;
   studentId: string;
@@ -317,6 +341,46 @@ export async function loadFeedback(
     data: storedFromRow(row, contextRecordIds, messages),
     error: null,
     notFound: false,
+  };
+}
+
+export async function loadFeedbackGroundingRecords(
+  db: SupabaseClient,
+  ownerId: string,
+  contextRecordIds: readonly string[],
+): Promise<{
+  data: FeedbackGroundingRecord[];
+  error: RepositoryError | null;
+}> {
+  if (contextRecordIds.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const result = await db
+    .from("daily_records")
+    .select(
+      "id,achievements,evidence,process_notes,ao1_note,ao2_note,ao3_note,ao4_note,next_plan",
+    )
+    .eq("owner_id", ownerId)
+    .in("id", [...contextRecordIds]);
+  if (result.error) {
+    return { data: [], error: result.error as RepositoryError };
+  }
+
+  const rows = (result.data ?? []) as FeedbackGroundingRecordRow[];
+  return {
+    data: rows.map((row) => ({
+      id: row.id,
+      achievements: row.achievements,
+      evidence: row.evidence,
+      processNotes: row.process_notes,
+      ao1Note: row.ao1_note,
+      ao2Note: row.ao2_note,
+      ao3Note: row.ao3_note,
+      ao4Note: row.ao4_note,
+      nextPlan: row.next_plan,
+    })),
+    error: null,
   };
 }
 

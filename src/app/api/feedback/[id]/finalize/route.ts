@@ -5,9 +5,14 @@ import { requireUser } from "@/lib/api/auth";
 import { apiError, validationError } from "@/lib/api/responses";
 import { generatedFeedbackSchema } from "@/lib/deepseek/schema";
 import {
+  buildEvidenceCorpus,
+  mapEvidenceToCanonicalIds,
+} from "@/lib/domain/grounding";
+import {
   FeedbackConflictError,
   finalizeFeedback,
   loadFeedback,
+  loadFeedbackGroundingRecords,
   RepositoryStorageUnavailableError,
 } from "@/lib/repositories/feedbacks";
 
@@ -58,6 +63,53 @@ export async function POST(request: Request, context: RouteContext) {
   }
   if (feedback.data.draft.mode !== parsed.data.draft.mode) {
     return apiError("Feedback language mode cannot be changed", 400);
+  }
+
+  const groundingRecords = await loadFeedbackGroundingRecords(
+    auth.db,
+    auth.user.id,
+    feedback.data.contextRecordIds,
+  );
+  if (groundingRecords.error) {
+    return apiError("Feedback context is temporarily unavailable", 503);
+  }
+  const corpus = buildEvidenceCorpus(groundingRecords.data);
+  const groundingIssues: string[] = [];
+  const zhGrounding =
+    parsed.data.draft.mode === "en"
+      ? null
+      : mapEvidenceToCanonicalIds(
+          parsed.data.draft.zh.evidenceUsed,
+          corpus,
+        );
+  const enGrounding =
+    parsed.data.draft.mode === "zh"
+      ? null
+      : mapEvidenceToCanonicalIds(
+          parsed.data.draft.en.evidenceUsed,
+          corpus,
+        );
+  if (zhGrounding?.unsupported.length) {
+    groundingIssues.push("中文：引用证据无法追溯到上下文记录");
+  }
+  if (enGrounding?.unsupported.length) {
+    groundingIssues.push("英文：引用证据无法追溯到上下文记录");
+  }
+  if (
+    parsed.data.draft.mode === "bilingual" &&
+    zhGrounding &&
+    enGrounding &&
+    zhGrounding.unsupported.length === 0 &&
+    enGrounding.unsupported.length === 0 &&
+    JSON.stringify(zhGrounding.ids) !== JSON.stringify(enGrounding.ids)
+  ) {
+    groundingIssues.push("中英双语：引用证据来源不一致");
+  }
+  if (groundingIssues.length > 0) {
+    return NextResponse.json(
+      { error: "Feedback quality checks failed", issues: groundingIssues },
+      { status: 422 },
+    );
   }
 
   const result = await finalizeFeedback(

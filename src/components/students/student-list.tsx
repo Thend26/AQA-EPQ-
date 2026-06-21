@@ -47,7 +47,7 @@ export function StudentList({
   return (
     <section aria-label="学生档案">
       <p>
-        建议管理 1–10 名学生；当前 {students.length} 名，不设强制上限。
+        建议管理 1–10 名学生；当前 {students.length} 名，首版上限 10 名。
       </p>
       {students.length === 0 ? <p>还没有学生档案</p> : null}
       <ul>

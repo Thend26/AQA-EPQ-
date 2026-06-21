@@ -1,10 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { getUser, getDailyRecord, upsertDailyRecord } = vi.hoisted(() => ({
-  getUser: vi.fn(),
-  getDailyRecord: vi.fn(),
-  upsertDailyRecord: vi.fn(),
-}));
+const {
+  getUser,
+  getDailyRecord,
+  upsertDailyRecord,
+  FakeDailyRecordConflict,
+} = vi.hoisted(() => {
+  class FakeDailyRecordConflict extends Error {}
+  return {
+    getUser: vi.fn(),
+    getDailyRecord: vi.fn(),
+    upsertDailyRecord: vi.fn(),
+    FakeDailyRecordConflict,
+  };
+});
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser } }),
@@ -13,6 +22,7 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/repositories/daily-records", () => ({
   getDailyRecord,
   upsertDailyRecord,
+  DailyRecordConflictError: FakeDailyRecordConflict,
 }));
 
 import { GET, PUT } from "@/app/api/daily-records/route";
@@ -32,6 +42,7 @@ const validInput = {
   ao2Note: "",
   ao3Note: "",
   ao4Note: "",
+  expectedRevision: null,
 };
 
 beforeEach(() => {
@@ -164,7 +175,7 @@ describe("daily record API", () => {
 
   test("upserts with the authenticated owner", async () => {
     upsertDailyRecord.mockResolvedValue({
-      data: validInput,
+      data: { ...validInput, id: "record-1", revision: 0 },
       error: null,
       notFound: false,
     });
@@ -180,8 +191,29 @@ describe("daily record API", () => {
     expect(upsertDailyRecord).toHaveBeenCalledWith(
       expect.anything(),
       "authenticated-owner",
-      validInput,
+      expect.objectContaining({ studentId }),
+      null,
     );
+  });
+
+  test("maps an optimistic write conflict to 409", async () => {
+    upsertDailyRecord.mockResolvedValue({
+      data: null,
+      error: new FakeDailyRecordConflict("stale"),
+      notFound: false,
+    });
+
+    const response = await PUT(
+      new Request("https://app.example/api/daily-records", {
+        method: "PUT",
+        body: JSON.stringify({ ...validInput, expectedRevision: 4 }),
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Daily record changed; refresh before saving",
+    });
   });
 
   test.each([

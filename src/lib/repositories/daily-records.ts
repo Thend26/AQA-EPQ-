@@ -4,6 +4,7 @@ import type {
   DailyRecord,
   DailyRecordInput,
 } from "@/lib/domain/types";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 type RepositoryError = { message: string };
 
@@ -29,9 +30,31 @@ type DailyRecordRow = {
   ao2_note: string;
   ao3_note: string;
   ao4_note: string;
+  revision: number;
 };
 
-export type StoredDailyRecord = DailyRecord & { id: string };
+export type StoredDailyRecord = DailyRecord & {
+  id: string;
+  revision: number;
+};
+
+export class DailyRecordConflictError extends Error {
+  readonly code = "daily_record_conflict";
+
+  constructor() {
+    super("Daily record was changed by another request");
+    this.name = "DailyRecordConflictError";
+  }
+}
+
+export class DailyRecordStorageUnavailableError extends Error {
+  readonly code = "daily_record_storage_unavailable";
+
+  constructor() {
+    super("Daily record storage is temporarily unavailable");
+    this.name = "DailyRecordStorageUnavailableError";
+  }
+}
 
 export async function verifyStudentOwnership(
   db: SupabaseClient,
@@ -87,6 +110,7 @@ function dailyRecordFromRow(row: DailyRecordRow): StoredDailyRecord {
     ao2Note: row.ao2_note,
     ao3Note: row.ao3_note,
     ao4Note: row.ao4_note,
+    revision: row.revision,
   };
 }
 
@@ -125,6 +149,7 @@ export async function upsertDailyRecord(
   db: SupabaseClient,
   ownerId: string,
   input: DailyRecordInput,
+  expectedRevision: number | null,
 ): Promise<RepositoryResult<StoredDailyRecord>> {
   const ownership = await verifyStudentOwnership(
     db,
@@ -138,19 +163,51 @@ export async function upsertDailyRecord(
     return { data: null, error: null, notFound: true };
   }
 
-  const result = await db
-    .from("daily_records")
-    .upsert(dailyRecordUpsert(ownerId, input), {
-      onConflict: "student_id,record_date",
-    })
-    .select("*")
-    .single();
+  let result;
+  try {
+    result = await createAdminClient().rpc("save_daily_record", {
+      p_owner_id: ownerId,
+      p_student_id: input.studentId,
+      p_record_date: input.recordDate,
+      p_camp_day: input.campDay,
+      p_achievements: input.achievements,
+      p_evidence: input.evidence ?? "",
+      p_challenges: input.challenges ?? "",
+      p_next_plan: input.nextPlan,
+      p_process_notes: input.processNotes ?? "",
+      p_behavior_tags: input.behaviorTags ?? [],
+      p_ao1_note: input.ao1Note ?? "",
+      p_ao2_note: input.ao2Note ?? "",
+      p_ao3_note: input.ao3Note ?? "",
+      p_ao4_note: input.ao4Note ?? "",
+      p_expected_revision: expectedRevision,
+    });
+  } catch {
+    return {
+      data: null,
+      error: new DailyRecordStorageUnavailableError(),
+      notFound: false,
+    };
+  }
+  if (result.error) {
+    return {
+      data: null,
+      error: new DailyRecordStorageUnavailableError(),
+      notFound: false,
+    };
+  }
+  const row = (result.data as DailyRecordRow[] | null)?.[0];
+  if (!row) {
+    return {
+      data: null,
+      error: new DailyRecordConflictError(),
+      notFound: false,
+    };
+  }
 
   return {
-    data: result.data
-      ? dailyRecordFromRow(result.data as DailyRecordRow)
-      : null,
-    error: result.error,
+    data: dailyRecordFromRow(row),
+    error: null,
     notFound: false,
   };
 }

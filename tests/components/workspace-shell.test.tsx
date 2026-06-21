@@ -98,6 +98,38 @@ test("exposes an accessible student panel and logout action", () => {
   expect(screen.getByRole("button", { name: "退出登录" })).toBeInTheDocument();
 });
 
+test("opens a read-only feedback history entry with its saved content", async () => {
+  const user = userEvent.setup();
+  render(
+    <WorkspaceShell
+      {...baseProps}
+      feedbackHistory={[
+        {
+          id: "feedback-history-1",
+          status: "final",
+          version: 1,
+          createdAt: "2026-07-18T10:00:00Z",
+          draft: {
+            mode: "zh",
+            zh: {
+              content: "这是已经归档的匿名历史反馈内容。",
+              evidenceUsed: ["筛选了四篇文献"],
+              nextStep: "继续制作证据比较表。",
+            },
+          },
+        },
+      ]}
+    />,
+  );
+
+  await user.click(screen.getByRole("button", { name: /第 1 版/ }));
+  expect(
+    screen.getByText("这是已经归档的匿名历史反馈内容。"),
+  ).toBeInTheDocument();
+  expect(screen.getByText("引用证据：筛选了四篇文献")).toBeInTheDocument();
+  expect(screen.getByText("下一步：继续制作证据比较表。")).toBeInTheDocument();
+});
+
 test("does not replace the server business date on mount", () => {
   const navigate = vi.fn();
   render(

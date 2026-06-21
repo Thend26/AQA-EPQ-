@@ -19,6 +19,7 @@ import type {
   Student,
   StudentProfile,
 } from "@/lib/domain/types";
+import { clearOwnerDailyRecordDrafts } from "@/lib/domain/draft-storage";
 import { studentSchema } from "@/lib/domain/types";
 import {
   requestWorkspaceJson,
@@ -36,6 +37,7 @@ type HistoryItem = {
   status: "draft" | "final";
   version: number;
   createdAt: string;
+  draft: GeneratedFeedback;
 };
 
 type WorkspaceShellProps = {
@@ -87,6 +89,9 @@ export function WorkspaceShell({
     record: DailyRecordObservationDraft;
   } | null>(null);
   const [logoutError, setLogoutError] = useState("");
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
+    null,
+  );
   const go = useMemo(
     () =>
       navigate ??
@@ -158,6 +163,7 @@ export function WorkspaceShell({
             : "退出失败，请稍后重试";
         throw new WorkspaceApiError(message, response.status);
       }
+      clearOwnerDailyRecordDrafts(window.localStorage, ownerId);
       go("/login");
     } catch {
       setLogoutError("退出失败，请稍后重试");
@@ -193,12 +199,13 @@ export function WorkspaceShell({
           <button
             type="button"
             className="mb-4 w-full rounded-xl bg-orange-500 px-4 py-2 font-semibold text-white hover:bg-orange-600"
+            disabled={students.length >= 10}
             onClick={() => {
               setEditing(null);
               setPanelOpen(true);
             }}
           >
-            新增学生
+            {students.length >= 10 ? "已达到 10 名上限" : "新增学生"}
           </button>
           <StudentList
             students={students}
@@ -324,8 +331,50 @@ export function WorkspaceShell({
                   <ul className="mt-2 space-y-2 text-sm text-stone-600">
                     {feedbackHistory.map((item) => (
                       <li key={item.id}>
-                        第 {item.version} 版 ·{" "}
-                        {item.status === "final" ? "已归档" : "草稿"}
+                        <button
+                          type="button"
+                          className="text-left underline-offset-2 hover:underline"
+                          onClick={() =>
+                            setSelectedHistoryId((current) =>
+                              current === item.id ? null : item.id,
+                            )
+                          }
+                        >
+                          第 {item.version} 版 ·{" "}
+                          {item.status === "final" ? "已归档" : "草稿"}
+                        </button>
+                        {selectedHistoryId === item.id ? (
+                          <div className="mt-2 space-y-2 rounded-xl bg-white p-3 text-stone-700">
+                            {item.draft.mode !== "en" ? (
+                              <>
+                                <p className="font-medium">中文反馈</p>
+                                <p className="whitespace-pre-wrap">
+                                  {item.draft.zh.content}
+                                </p>
+                                <p>
+                                  引用证据：
+                                  {item.draft.zh.evidenceUsed.join("；")}
+                                </p>
+                                <p>下一步：{item.draft.zh.nextStep}</p>
+                              </>
+                            ) : null}
+                            {item.draft.mode !== "zh" ? (
+                              <>
+                                <p className="font-medium">
+                                  English feedback
+                                </p>
+                                <p className="whitespace-pre-wrap">
+                                  {item.draft.en.content}
+                                </p>
+                                <p>
+                                  Evidence:{" "}
+                                  {item.draft.en.evidenceUsed.join("; ")}
+                                </p>
+                                <p>Next step: {item.draft.en.nextStep}</p>
+                              </>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </li>
                     ))}
                   </ul>

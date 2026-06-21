@@ -96,3 +96,21 @@ export function removeDailyRecordDraft(
     return false;
   }
 }
+
+export function clearOwnerDailyRecordDrafts(
+  storage: Storage | null,
+  ownerId: string,
+) {
+  try {
+    if (!storage) return false;
+    const prefix = `epq-draft:${ownerId}:`;
+    const keys = Array.from(
+      { length: storage.length },
+      (_, index) => storage.key(index),
+    ).filter((key): key is string => Boolean(key?.startsWith(prefix)));
+    keys.forEach((key) => storage.removeItem(key));
+    return true;
+  } catch {
+    return false;
+  }
+}

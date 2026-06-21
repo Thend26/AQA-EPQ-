@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
+import type { GeneratedFeedback } from "@/lib/deepseek/schema";
 import { getDailyRecord } from "@/lib/repositories/daily-records";
 import { listStudents } from "@/lib/repositories/students";
 import { loadWorkspaceFeedbacks } from "@/lib/repositories/workspace-feedbacks";
@@ -62,6 +63,7 @@ export default async function WorkspacePage({
     status: "draft" | "final";
     version: number;
     createdAt: string;
+    draft: GeneratedFeedback;
   }> = [];
 
   if (selectedStudent?.id) {

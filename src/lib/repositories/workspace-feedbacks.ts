@@ -65,6 +65,7 @@ export async function loadWorkspaceFeedbacks(
       status: row.status,
       version: row.version,
       createdAt: row.created_at,
+      draft: draftFromRow(row),
     })),
   };
 }

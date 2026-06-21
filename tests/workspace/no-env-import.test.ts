@@ -1,5 +1,7 @@
 import { expect, test, vi } from "vitest";
 
+vi.mock("server-only", () => ({}));
+
 test("workspace modules import without Supabase environment variables", async () => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");

@@ -154,7 +154,8 @@ export function buildFeedbackPrompt(input: FeedbackPromptInput) {
     "Continuity: 比较上一条记录的 nextPlan with the current achievements when both exist. Explicitly identify fulfilled, partial, or unsupported progress without guessing.",
     "Use previous final feedback only to avoid repetition and preserve continuity; do not treat it as new evidence.",
     `Language rules: requested mode is ${input.languageMode}. Chinese content and nextStep must be Chinese; English content and nextStep must be English; bilingual output must provide independently grounded zh and en objects.`,
-    "Every evidenceUsed item must be a concise fact traceable to the supplied records. Each language needs its own evidenceUsed and nextStep.",
+    "Every evidenceUsed item must copy a concise source-language fact from recentRecords and may prefix it with [recordId:fieldKey]. Use only achievements, evidence, processNotes, ao1Note, ao2Note, ao3Note, ao4Note, or nextPlan field keys.",
+    "Do not translate evidenceUsed metadata. In bilingual mode, zh.evidenceUsed and en.evidenceUsed must cite the same source facts so both arrays map to the same recordId:fieldKey set.",
     "Return one JSON object only, with no Markdown or commentary.",
     `Required strict JSON schema (no extra or missing fields): ${outputShape(input.languageMode)}`,
   ].join("\n");
