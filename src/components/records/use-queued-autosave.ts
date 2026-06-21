@@ -19,14 +19,15 @@ type SaveJob = {
   values: DailyRecordDraftValues;
 };
 
-type UseQueuedAutosaveOptions = {
+type UseQueuedAutosaveOptions<TResult> = {
   identity: string;
   draftIdentity: DailyRecordDraftIdentity;
   storage: Storage | null;
   revision: number;
   values: DailyRecordDraftValues;
   record: DailyRecord | null;
-  save: (record: DailyRecord) => Promise<void>;
+  save: (record: DailyRecord) => Promise<TResult>;
+  onSaved?: (result: TResult, snapshot: DailyRecord) => void;
 };
 
 function sameValues(
@@ -36,7 +37,7 @@ function sameValues(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export function useQueuedAutosave({
+export function useQueuedAutosave<TResult>({
   identity,
   draftIdentity,
   storage,
@@ -44,7 +45,8 @@ export function useQueuedAutosave({
   values,
   record,
   save,
-}: UseQueuedAutosaveOptions): SaveStatus {
+  onSaved,
+}: UseQueuedAutosaveOptions<TResult>): SaveStatus {
   const [settled, setSettled] = useState<{
     revision: number;
     status: "saved" | "failure";
@@ -71,7 +73,7 @@ export function useQueuedAutosave({
       inFlightRef.current = job;
 
       void save(job.record).then(
-        () => {
+        (result) => {
           inFlightRef.current = null;
           if (!activeRef.current) {
             queuedRef.current = null;
@@ -93,6 +95,7 @@ export function useQueuedAutosave({
             if (stored && sameValues(stored, job.values)) {
               removeDailyRecordDraft(storage, job.identity);
             }
+            onSaved?.(result, job.record);
             setSettled({ revision: job.revision, status: "saved" });
           }
 
@@ -125,7 +128,7 @@ export function useQueuedAutosave({
         },
       );
     },
-    [draftIdentity, save, storage],
+    [draftIdentity, onSaved, save, storage],
   );
 
   const enqueueSave = useCallback(

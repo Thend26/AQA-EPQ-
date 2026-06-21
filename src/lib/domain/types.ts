@@ -51,3 +51,15 @@ export const dailyRecordSchema = z.object({
 }).strict();
 export type DailyRecordInput = z.input<typeof dailyRecordSchema>;
 export type DailyRecord = z.output<typeof dailyRecordSchema>;
+
+export const dailyRecordObservationDraftSchema = z.object({
+  processNotes: z.string().max(4000).optional(),
+  behaviorTags: z.array(z.string()).optional(),
+  ao1Note: z.string().max(2000).optional(),
+  ao2Note: z.string().max(2000).optional(),
+  ao3Note: z.string().max(2000).optional(),
+  ao4Note: z.string().max(2000).optional(),
+}).strict();
+export type DailyRecordObservationDraft = z.output<
+  typeof dailyRecordObservationDraftSchema
+>;

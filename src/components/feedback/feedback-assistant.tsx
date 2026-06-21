@@ -5,12 +5,14 @@ import { useMemo, useState } from "react";
 import { LanguageSwitcher } from "@/components/feedback/language-switcher";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
 import { checkFeedbackQuality } from "@/lib/domain/quality";
+import type { LanguageMode } from "@/lib/domain/types";
 
 type FeedbackAssistantProps = {
   contextSummary: string;
   initialDraft: GeneratedFeedback;
   initialRevision?: number;
-  generate?: () => Promise<{
+  hasExistingFeedback?: boolean;
+  generate?: (mode: LanguageMode) => Promise<{
     draft: GeneratedFeedback;
     revision: number;
   }>;
@@ -29,11 +31,35 @@ export function FeedbackAssistant({
   contextSummary,
   initialDraft,
   initialRevision = 0,
+  hasExistingFeedback,
   generate,
   revise,
   finalize,
 }: FeedbackAssistantProps) {
-  const [draft, setDraft] = useState(initialDraft);
+  const initialHasContent =
+    ("zh" in initialDraft &&
+      Boolean(
+        initialDraft.zh.content ||
+          initialDraft.zh.nextStep ||
+          initialDraft.zh.evidenceUsed.length,
+      )) ||
+    ("en" in initialDraft &&
+      Boolean(
+        initialDraft.en.content ||
+          initialDraft.en.nextStep ||
+          initialDraft.en.evidenceUsed.length,
+      ));
+  const [mode, setMode] = useState<LanguageMode>(initialDraft.mode);
+  const [localized, setLocalized] = useState(() => ({
+    zh:
+      "zh" in initialDraft
+        ? initialDraft.zh
+        : { content: "", evidenceUsed: [], nextStep: "" },
+    en:
+      "en" in initialDraft
+        ? initialDraft.en
+        : { content: "", evidenceUsed: [], nextStep: "" },
+  }));
   const [revision, setRevision] = useState(initialRevision);
   const [activeLanguage, setActiveLanguage] = useState<"zh" | "en">(
     initialDraft.mode === "en" ? "en" : "zh",
@@ -44,37 +70,51 @@ export function FeedbackAssistant({
   >(null);
   const [error, setError] = useState("");
   const [finalized, setFinalized] = useState(false);
+  const [generated, setGenerated] = useState(
+    hasExistingFeedback ?? initialHasContent,
+  );
+  const draft = useMemo<GeneratedFeedback>(() => {
+    if (mode === "zh") return { mode, zh: localized.zh };
+    if (mode === "en") return { mode, en: localized.en };
+    return { mode, zh: localized.zh, en: localized.en };
+  }, [localized, mode]);
   const immutable = pending !== null || finalized;
-  const issues = useMemo(() => checkFeedbackQuality(draft), [draft]);
+  const issues = useMemo(
+    () => (generated ? checkFeedbackQuality(draft) : []),
+    [draft, generated],
+  );
   const visibleLanguage =
-    draft.mode === "bilingual"
+    mode === "bilingual"
       ? activeLanguage
-      : draft.mode === "en"
+      : mode === "en"
         ? "en"
         : "zh";
 
   function updateContent(content: string) {
-    if (visibleLanguage === "zh" && draft.mode !== "en") {
-      setDraft({ ...draft, zh: { ...draft.zh, content } });
-    } else if (visibleLanguage === "en" && draft.mode !== "zh") {
-      setDraft({ ...draft, en: { ...draft.en, content } });
-    }
+    setLocalized((current) => ({
+      ...current,
+      [visibleLanguage]: { ...current[visibleLanguage], content },
+    }));
   }
 
   function updateNextStep(nextStep: string) {
-    if (visibleLanguage === "zh" && draft.mode !== "en") {
-      setDraft({ ...draft, zh: { ...draft.zh, nextStep } });
-    } else if (visibleLanguage === "en" && draft.mode !== "zh") {
-      setDraft({ ...draft, en: { ...draft.en, nextStep } });
-    }
+    setLocalized((current) => ({
+      ...current,
+      [visibleLanguage]: { ...current[visibleLanguage], nextStep },
+    }));
   }
 
-  const visibleDraft =
-    visibleLanguage === "zh" && draft.mode !== "en"
-      ? draft.zh
-      : draft.mode !== "zh"
-        ? draft.en
-        : draft.zh;
+  const visibleDraft = localized[visibleLanguage];
+
+  function acceptGenerated(next: GeneratedFeedback) {
+    setMode(next.mode);
+    setLocalized((current) => ({
+      zh: "zh" in next ? next.zh : current.zh,
+      en: "en" in next ? next.en : current.en,
+    }));
+    setActiveLanguage(next.mode === "en" ? "en" : "zh");
+    setGenerated(true);
+  }
 
   async function run(
     kind: "generate" | "revise" | "finalize",
@@ -112,10 +152,17 @@ export function FeedbackAssistant({
       </div>
 
       <LanguageSwitcher
-        mode={draft.mode}
+        mode={mode}
         active={activeLanguage}
+        canChangeMode={!generated}
         disabled={immutable}
-        onChange={setActiveLanguage}
+        onModeChange={(nextMode) => {
+          setMode(nextMode);
+          if (nextMode !== "bilingual") {
+            setActiveLanguage(nextMode);
+          }
+        }}
+        onActiveChange={setActiveLanguage}
       />
 
       <label className="block">
@@ -185,9 +232,9 @@ export function FeedbackAssistant({
           onClick={() =>
             run("generate", async () => {
               if (generate) {
-                const generated = await generate();
-                setDraft(generated.draft);
-                setRevision(generated.revision);
+                const result = await generate(mode);
+                acceptGenerated(result.draft);
+                setRevision(result.revision);
               }
             })
           }
@@ -207,7 +254,7 @@ export function FeedbackAssistant({
                 draft,
                 revision,
               );
-              setDraft(revised.draft);
+              acceptGenerated(revised.draft);
               setRevision(revised.revision);
               setInstruction("");
             })

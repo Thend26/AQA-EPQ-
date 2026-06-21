@@ -18,6 +18,83 @@ const initialDraft = {
   },
 };
 
+const emptyDraft = {
+  mode: "zh" as const,
+  zh: { content: "", evidenceUsed: [], nextStep: "" },
+};
+
+test.each([
+  ["中文", "zh"],
+  ["英文", "en"],
+  ["中英双语", "bilingual"],
+] as const)(
+  "allows choosing %s before the first generation",
+  async (button, mode) => {
+  const user = userEvent.setup();
+  const generate = vi.fn(async (mode: "zh" | "en" | "bilingual") => ({
+    draft:
+      mode === "zh"
+        ? emptyDraft
+        : mode === "en"
+          ? {
+              mode: "en" as const,
+              en: { content: "", evidenceUsed: [], nextStep: "" },
+            }
+          : {
+              mode: "bilingual" as const,
+              zh: emptyDraft.zh,
+              en: { content: "", evidenceUsed: [], nextStep: "" },
+            },
+    revision: 0,
+  }));
+  render(
+    <FeedbackAssistant
+      contextSummary="尚无反馈"
+      initialDraft={emptyDraft}
+      generate={generate}
+    />,
+  );
+
+  expect(screen.queryByLabelText("质量问题")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: button }));
+  await user.click(screen.getByRole("button", { name: "生成反馈" }));
+  expect(generate).toHaveBeenLastCalledWith(mode);
+  expect(screen.getByLabelText("质量问题")).toBeInTheDocument();
+  },
+);
+
+test("preserves entered language content while changing output mode", async () => {
+  const user = userEvent.setup();
+  render(
+    <FeedbackAssistant
+      contextSummary="尚无反馈"
+      initialDraft={emptyDraft}
+    />,
+  );
+
+  await user.type(screen.getByLabelText("中文反馈"), "中文草稿");
+  await user.click(screen.getByRole("button", { name: "中英双语" }));
+  expect(screen.getByLabelText("中文反馈")).toHaveValue("中文草稿");
+  await user.click(screen.getByRole("button", { name: "英文内容" }));
+  expect(screen.getByLabelText("English feedback")).toHaveValue("");
+  await user.click(screen.getByRole("button", { name: "中文内容" }));
+  expect(screen.getByLabelText("中文反馈")).toHaveValue("中文草稿");
+});
+
+test("uses Chinese labels and named language groups", () => {
+  render(
+    <FeedbackAssistant
+      contextSummary="尚无反馈"
+      initialDraft={emptyDraft}
+    />,
+  );
+
+  expect(
+    screen.getByRole("group", { name: "选择反馈输出语言" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "英文" })).toBeInTheDocument();
+});
+
 test("keeps the current draft when a revision request fails", async () => {
   const user = userEvent.setup();
   render(
@@ -51,13 +128,13 @@ describe("feedback language and pending state", () => {
     const chinese = screen.getByLabelText("中文反馈");
     await user.clear(chinese);
     await user.type(chinese, "修改后的中文");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await user.click(screen.getByRole("button", { name: "英文内容" }));
 
     expect(screen.getByLabelText("English feedback")).toHaveValue(
       "Existing English feedback content",
     );
 
-    await user.click(screen.getByRole("button", { name: "中文" }));
+    await user.click(screen.getByRole("button", { name: "中文内容" }));
     expect(screen.getByLabelText("中文反馈")).toHaveValue("修改后的中文");
   });
 
@@ -89,7 +166,7 @@ describe("feedback language and pending state", () => {
     expect(screen.getByLabelText("中文反馈")).toBeDisabled();
     expect(screen.getByLabelText("下一步建议")).toBeDisabled();
     expect(screen.getByLabelText("修改要求")).toBeDisabled();
-    expect(screen.getByRole("button", { name: "English" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "英文内容" })).toBeDisabled();
 
     resolveRevision?.({ draft: initialDraft, revision: 3 });
     await waitFor(() =>

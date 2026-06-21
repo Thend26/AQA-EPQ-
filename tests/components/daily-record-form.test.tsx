@@ -158,6 +158,55 @@ test("debounces a valid cloud save by 800ms and reports success", async () => {
   expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toBeNull();
 });
 
+test("reports the saved record result with the acknowledged snapshot", async () => {
+  vi.useFakeTimers();
+  const savedRecord = {
+    id: "323e4567-e89b-42d3-a456-426614174000",
+    studentId,
+    recordDate: date,
+    campDay: 1,
+    achievements: "筛选了四篇文献",
+    evidence: "",
+    challenges: "",
+    nextPlan: "比较研究方法",
+    processNotes: "",
+    behaviorTags: [],
+    ao1Note: "",
+    ao2Note: "",
+    ao3Note: "",
+    ao4Note: "",
+  };
+  const onSaved = vi.fn();
+  render(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      save={async () => savedRecord}
+      onSaved={onSaved}
+    />,
+  );
+
+  fireEvent.change(screen.getByLabelText("今日完成成果"), {
+    target: { value: savedRecord.achievements },
+  });
+  fireEvent.change(screen.getByLabelText("明日计划"), {
+    target: { value: savedRecord.nextPlan },
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800);
+  });
+
+  expect(onSaved).toHaveBeenCalledWith(
+    savedRecord,
+    expect.objectContaining({
+      studentId,
+      recordDate: date,
+      achievements: savedRecord.achievements,
+    }),
+  );
+});
+
 test("serializes saves and sends the latest queued snapshot after completion", async () => {
   vi.useFakeTimers();
   const first = deferred<void>();

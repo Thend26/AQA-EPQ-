@@ -14,6 +14,7 @@ import { draftKey } from "@/lib/domain/drafts";
 import {
   dailyRecordSchema,
   type DailyRecord,
+  type DailyRecordObservationDraft,
 } from "@/lib/domain/types";
 
 type DailyRecordFormProps = {
@@ -21,8 +22,15 @@ type DailyRecordFormProps = {
   studentId: string;
   date: string;
   initialValue?: DailyRecord | null;
-  save?: (record: DailyRecord) => Promise<void>;
+  save?: (record: DailyRecord) => Promise<SavedDailyRecord | void>;
+  onSaved?: (
+    result: SavedDailyRecord | void,
+    snapshot: DailyRecord,
+  ) => void;
+  onDraftChange?: (draft: DailyRecordObservationDraft) => void;
 };
+
+export type SavedDailyRecord = DailyRecord & { id: string };
 
 const behaviorTagOptions = [
   "主动提问",
@@ -76,6 +84,13 @@ async function saveDailyRecord(record: DailyRecord) {
   if (!response.ok) {
     throw new Error("Failed to save daily record");
   }
+  const payload = (await response.json()) as {
+    data?: SavedDailyRecord;
+  };
+  if (!payload.data?.id) {
+    throw new Error("Saved daily record id is missing");
+  }
+  return payload.data;
 }
 
 function DailyRecordFormFields({
@@ -84,6 +99,8 @@ function DailyRecordFormFields({
   date,
   initialValue,
   save = saveDailyRecord,
+  onSaved,
+  onDraftChange,
 }: DailyRecordFormProps) {
   const key = useMemo(
     () => draftKey(ownerId, studentId, date),
@@ -111,6 +128,14 @@ function DailyRecordFormFields({
     setRevision(revision);
     setValues(next);
     writeDailyRecordDraft(storage, key, draftIdentity, next);
+    onDraftChange?.({
+      processNotes: next.processNotes,
+      behaviorTags: next.behaviorTags,
+      ao1Note: next.ao1Note,
+      ao2Note: next.ao2Note,
+      ao3Note: next.ao3Note,
+      ao4Note: next.ao4Note,
+    });
   }
 
   function update<K extends keyof DailyRecordDraftValues>(
@@ -143,6 +168,7 @@ function DailyRecordFormFields({
     values,
     record,
     save,
+    onSaved,
   });
 
   return (
