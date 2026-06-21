@@ -8,7 +8,8 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
-import { GET, safeNextPath } from "@/app/auth/callback/route";
+import { GET } from "@/app/auth/callback/route";
+import { safeNextPath } from "@/lib/auth/safe-next-path";
 
 const origin = "https://app.example";
 
