@@ -6,7 +6,9 @@ const {
   requireUser,
   loadGenerationContext,
   generateWithDeepSeek,
+  createFeedbackDraft,
   FakeDeepSeekError,
+  FakeStorageError,
 } = vi.hoisted(() => {
   class FakeDeepSeekError extends Error {
     constructor(
@@ -21,17 +23,24 @@ const {
       super(message);
     }
   }
+  class FakeStorageError extends Error {}
   return {
     requireUser: vi.fn(),
     loadGenerationContext: vi.fn(),
     generateWithDeepSeek: vi.fn(),
+    createFeedbackDraft: vi.fn(),
     FakeDeepSeekError,
+    FakeStorageError,
   };
 });
 
 vi.mock("@/lib/api/auth", () => ({ requireUser }));
 vi.mock("@/lib/repositories/generation-context", () => ({
   loadGenerationContext,
+}));
+vi.mock("@/lib/repositories/feedbacks", () => ({
+  createFeedbackDraft,
+  RepositoryStorageUnavailableError: FakeStorageError,
 }));
 vi.mock("@/lib/deepseek/client", () => ({
   DeepSeekError: FakeDeepSeekError,
@@ -97,6 +106,14 @@ beforeEach(() => {
       evidenceUsed: ["筛选4篇文献"],
       nextStep: "完成来源比较表",
     },
+  });
+  createFeedbackDraft.mockResolvedValue({
+    data: {
+      id: "123e4567-e89b-42d3-a456-426614174010",
+      version: 1,
+    },
+    error: null,
+    notFound: false,
   });
 });
 
@@ -193,6 +210,18 @@ describe("feedback generation API", () => {
     );
     expect(body.draft.mode).toBe("zh");
     expect(body.issues).toContain("中文：反馈不足50汉字");
+    expect(createFeedbackDraft).toHaveBeenCalledWith(
+      "owner-123",
+      {
+        dailyRecordId,
+        draft: expect.objectContaining({ mode: "zh" }),
+        contextRecordIds: [dailyRecordId],
+      },
+    );
+    expect(body.feedback).toMatchObject({
+      id: "123e4567-e89b-42d3-a456-426614174010",
+      version: 1,
+    });
   });
 
   test("returns quality issues instead of 502 for empty evidence and next step", async () => {
@@ -286,5 +315,26 @@ describe("feedback generation API", () => {
 
     expect(response.status).toBe(503);
     expect(generateWithDeepSeek).not.toHaveBeenCalled();
+  });
+
+  test("maps admin storage failure to 503 without reporting an AI failure", async () => {
+    createFeedbackDraft.mockResolvedValue({
+      data: null,
+      error: new FakeStorageError("hidden service configuration"),
+      notFound: false,
+    });
+
+    const response = await POST(
+      request({
+        dailyRecordId,
+        languageMode: "zh",
+        instruction: "",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Feedback storage is temporarily unavailable",
+    });
   });
 });

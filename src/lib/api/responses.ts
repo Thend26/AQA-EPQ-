@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import type { z } from "zod";
 
-export type ApiErrorStatus = 400 | 401 | 404 | 429 | 500 | 502 | 503;
+export type ApiErrorStatus =
+  | 400
+  | 401
+  | 404
+  | 409
+  | 422
+  | 429
+  | 500
+  | 502
+  | 503;
 
 export function apiError(message: string, status: ApiErrorStatus) {
   return NextResponse.json({ error: message }, { status });

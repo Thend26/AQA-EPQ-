@@ -11,6 +11,10 @@ import { buildFeedbackPrompt } from "@/lib/domain/prompt";
 import { checkFeedbackQuality } from "@/lib/domain/quality";
 import { languageModeSchema } from "@/lib/domain/types";
 import { loadGenerationContext } from "@/lib/repositories/generation-context";
+import {
+  createFeedbackDraft,
+  RepositoryStorageUnavailableError,
+} from "@/lib/repositories/feedbacks";
 
 const generationRequestSchema = z
   .object({
@@ -72,7 +76,23 @@ export async function POST(request: Request) {
       return apiError("AI generation returned an invalid response", 502);
     }
 
+    const feedback = await createFeedbackDraft(auth.user.id, {
+      dailyRecordId: parsed.data.dailyRecordId,
+      draft,
+      contextRecordIds: context.data.records.map((record) => record.id),
+    });
+    if (feedback.error instanceof RepositoryStorageUnavailableError) {
+      return apiError("Feedback storage is temporarily unavailable", 503);
+    }
+    if (feedback.error) {
+      return apiError("Feedback draft could not be saved", 503);
+    }
+    if (feedback.notFound || !feedback.data) {
+      return apiError("Daily record not found", 404);
+    }
+
     return NextResponse.json({
+      feedback: feedback.data,
       draft,
       issues: checkFeedbackQuality(draft),
     });
