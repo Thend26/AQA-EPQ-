@@ -60,3 +60,34 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  display: inline-block;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: loading-spin 0.7s linear infinite;
+}
+
+.loading-spinner-sm {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.loading-spinner-md {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+  }
+}
