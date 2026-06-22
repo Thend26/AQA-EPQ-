@@ -57,5 +57,13 @@ export default defineConfig({
         ...(useSystemChrome ? { channel: "chrome" as const } : {}),
       },
     },
+    {
+      name: "compact-mobile",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 320, height: 720 },
+        ...(useSystemChrome ? { channel: "chrome" as const } : {}),
+      },
+    },
   ],
 });

@@ -10,6 +10,7 @@ import {
 } from "@/components/records/daily-record-form";
 import { StudentForm } from "@/components/students/student-form";
 import { StudentList } from "@/components/students/student-list";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AqaOverview } from "@/components/workspace/aqa-overview";
 import { createFeedbackAdapters } from "@/components/workspace/feedback-adapters";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
@@ -95,6 +96,8 @@ export function WorkspaceShell({
     record: DailyRecordObservationDraft;
   } | null>(null);
   const [logoutError, setLogoutError] = useState("");
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [navigationPending, setNavigationPending] = useState(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
     null,
   );
@@ -124,6 +127,7 @@ export function WorkspaceShell({
 
   function selectStudent(id: string) {
     const params = new URLSearchParams({ student: id, date });
+    setNavigationPending(true);
     go(`/workspace?${params.toString()}`);
   }
 
@@ -132,6 +136,7 @@ export function WorkspaceShell({
     if (selectedStudent?.id) params.set("student", selectedStudent.id);
     if (nextDate) params.set("date", nextDate);
     const query = params.toString();
+    setNavigationPending(true);
     go(query ? `/workspace?${query}` : "/workspace");
   }
 
@@ -163,7 +168,9 @@ export function WorkspaceShell({
   }
 
   async function logout() {
+    if (logoutPending) return;
     setLogoutError("");
+    setLogoutPending(true);
     try {
       const response = await fetch("/auth/signout", { method: "POST" });
       if (!response.ok) {
@@ -181,29 +188,54 @@ export function WorkspaceShell({
       go("/login");
     } catch {
       setLogoutError("退出失败，请稍后重试");
+      setLogoutPending(false);
     }
   }
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-stone-100 text-emerald-950">
-      <header className="flex min-h-16 items-center justify-between gap-4 bg-emerald-950 px-4 py-3 text-white sm:px-6">
-        <div className="min-w-0">
+      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 bg-emerald-950 px-4 py-3 text-white sm:px-6">
+        <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">
             EPQ Camp Companion
           </p>
-          <p className="truncate font-medium">
+          <p className="break-words font-medium">
             {profileName || "助教工作台"}
           </p>
         </div>
         <button
           type="button"
           onClick={() => void logout()}
-          className="shrink-0 rounded-lg border border-emerald-700 px-3 py-2 text-sm hover:bg-emerald-900"
+          disabled={logoutPending}
+          aria-busy={logoutPending}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-emerald-700 px-3 py-2 text-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-80"
         >
-          退出登录
+          {logoutPending ? (
+            <>
+              <LoadingSpinner size="sm" />
+              退出中…
+            </>
+          ) : (
+            "退出登录"
+          )}
         </button>
-        {logoutError ? <p role="alert">{logoutError}</p> : null}
+        {logoutError ? (
+          <p role="alert" className="w-full text-sm text-red-200">
+            {logoutError}
+          </p>
+        ) : null}
       </header>
+
+      {navigationPending ? (
+        <div
+          role="status"
+          aria-label="页面载入状态"
+          className="fixed right-4 top-20 z-50 inline-flex items-center gap-2 rounded-full bg-emerald-950 px-4 py-2 text-sm text-white shadow-lg"
+        >
+          <LoadingSpinner size="sm" />
+          <span>正在载入…</span>
+        </div>
+      ) : null}
 
       <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 overflow-x-hidden xl:grid-cols-[14rem_minmax(30rem,1fr)_23rem]">
         <nav
@@ -249,11 +281,14 @@ export function WorkspaceShell({
                       {selectedStudent.projectTitle}
                     </p>
                   </div>
-                  <div className="grid shrink-0 grid-cols-[auto_minmax(8.5rem,1fr)_auto] gap-2">
+                  <div
+                    data-testid="workspace-date-controls"
+                    className="grid w-full min-w-0 grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-2 sm:w-auto sm:min-w-[15rem]"
+                  >
                     <button
                       type="button"
                       aria-label="上一天"
-                      className="rounded-lg border border-emerald-700 px-3 py-2 hover:bg-emerald-800"
+                      className="min-h-11 rounded-lg border border-emerald-700 px-2 py-2 hover:bg-emerald-800"
                       onClick={() => selectDate(shiftDate(date, -1))}
                     >
                       ‹
@@ -266,20 +301,20 @@ export function WorkspaceShell({
                       aria-label="查看日期"
                       type="date"
                       value={date}
-                      className="m-0 border-emerald-700 bg-emerald-950 text-white"
+                      className="m-0 min-w-0 border-emerald-700 bg-emerald-950 text-white"
                       onChange={(event) => selectDate(event.target.value)}
                     />
                     <button
                       type="button"
                       aria-label="下一天"
-                      className="rounded-lg border border-emerald-700 px-3 py-2 hover:bg-emerald-800"
+                      className="min-h-11 rounded-lg border border-emerald-700 px-2 py-2 hover:bg-emerald-800"
                       onClick={() => selectDate(shiftDate(date, 1))}
                     >
                       ›
                     </button>
                     <button
                       type="button"
-                      className="col-span-3 rounded-lg border border-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-800"
+                      className="col-span-3 min-h-11 rounded-lg border border-emerald-700 px-3 py-2 text-sm hover:bg-emerald-800"
                       onClick={() => selectDate()}
                     >
                       回到今天

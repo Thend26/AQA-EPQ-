@@ -62,6 +62,10 @@ test("renders responsive students, record, and AI regions without horizontal ove
     "xl:grid-cols-[14rem_minmax(30rem,1fr)_23rem]",
     "overflow-x-hidden",
   );
+  expect(screen.getByRole("banner")).toHaveClass("flex-wrap");
+  expect(screen.getByTestId("workspace-date-controls")).toHaveClass(
+    "grid-cols-[2.75rem_minmax(0,1fr)_2.75rem]",
+  );
 });
 
 test("shows an addable empty state when there are no students", async () => {
@@ -152,6 +156,13 @@ test("navigates between record dates while preserving the selected student", asy
   expect(navigate).toHaveBeenLastCalledWith(
     `/workspace?student=${student.id}&date=2026-07-17`,
   );
+  const loadingStatus = screen.getByRole("status", {
+    name: "页面载入状态",
+  });
+  expect(loadingStatus).toHaveTextContent("正在载入");
+  expect(
+    loadingStatus.querySelector('[data-testid="loading-spinner"]'),
+  ).not.toBeNull();
 
   await user.click(screen.getByRole("button", { name: "下一天" }));
   expect(navigate).toHaveBeenLastCalledWith(
@@ -303,6 +314,29 @@ test("navigates to login only after a successful logout response", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
 
+  await act(async () => {});
+  expect(navigate).toHaveBeenCalledWith("/login");
+});
+
+test("shows a spinner and busy state while logging out", async () => {
+  const navigate = vi.fn();
+  let resolveLogout: ((value: Response) => void) | undefined;
+  vi.spyOn(globalThis, "fetch").mockImplementation(
+    () =>
+      new Promise<Response>((resolve) => {
+        resolveLogout = resolve;
+      }),
+  );
+  render(<WorkspaceShell {...baseProps} navigate={navigate} />);
+
+  fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
+
+  const button = screen.getByRole("button", { name: "退出中…" });
+  expect(button).toBeDisabled();
+  expect(button).toHaveAttribute("aria-busy", "true");
+  expect(button.querySelector('[data-testid="loading-spinner"]')).not.toBeNull();
+
+  resolveLogout?.(new Response(null, { status: 204 }));
   await act(async () => {});
   expect(navigate).toHaveBeenCalledWith("/login");
 });
