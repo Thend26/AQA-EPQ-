@@ -1,10 +1,11 @@
 import { beforeEach, expect, test, vi } from "vitest";
 
 const exchangeCodeForSession = vi.fn();
+const signOut = vi.fn();
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
-    auth: { exchangeCodeForSession },
+    auth: { exchangeCodeForSession, signOut },
   }),
 }));
 
@@ -15,6 +16,7 @@ const origin = "https://app.example";
 
 beforeEach(() => {
   exchangeCodeForSession.mockReset();
+  signOut.mockReset();
 });
 
 test.each([
@@ -45,6 +47,38 @@ test("redirects a successful callback to a safe next path", async () => {
   expect(exchangeCodeForSession).toHaveBeenCalledWith("valid-code");
   expect(response.headers.get("location")).toBe(
     `${origin}/workspace/student/123`,
+  );
+  expect(signOut).not.toHaveBeenCalled();
+});
+
+test("signs out a verification session before returning to verified login", async () => {
+  exchangeCodeForSession.mockResolvedValue({ error: null });
+  signOut.mockResolvedValue({ error: null });
+
+  const response = await GET(
+    new Request(
+      `${origin}/auth/callback?code=valid-code&next=%2Flogin%3Fverified%3D1`,
+    ),
+  );
+
+  expect(signOut).toHaveBeenCalledOnce();
+  expect(response.headers.get("location")).toBe(
+    `${origin}/login?verified=1`,
+  );
+});
+
+test("redirects to a safe error when verification sign out fails", async () => {
+  exchangeCodeForSession.mockResolvedValue({ error: null });
+  signOut.mockResolvedValue({ error: { message: "provider detail" } });
+
+  const response = await GET(
+    new Request(
+      `${origin}/auth/callback?code=valid-code&next=%2Flogin%3Fverified%3D1`,
+    ),
+  );
+
+  expect(response.headers.get("location")).toBe(
+    `${origin}/login?error=auth_callback`,
   );
 });
 

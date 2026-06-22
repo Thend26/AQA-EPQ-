@@ -23,6 +23,15 @@ export async function GET(request: Request) {
         new URL("/login?error=auth_callback", url.origin),
       );
     }
+
+    if (next.startsWith("/login?verified=1")) {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) {
+        return NextResponse.redirect(
+          new URL("/login?error=auth_callback", url.origin),
+        );
+      }
+    }
   } catch {
     return NextResponse.redirect(
       new URL("/login?error=auth_callback", url.origin),
