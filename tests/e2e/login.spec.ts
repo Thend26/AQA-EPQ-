@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("shows the private mentor login without public registration", async ({
+test("shows login and email registration modes", async ({
   page,
 }) => {
   await page.goto("/login");
@@ -8,7 +8,10 @@ test("shows the private mentor login without public registration", async ({
   await expect(page.getByRole("heading", { name: "登录" })).toBeVisible();
   await expect(page.getByLabel("邮箱")).toBeVisible();
   await expect(page.getByLabel("密码")).toBeVisible();
-  await expect(page.getByText("注册", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "注册账号" })).toBeVisible();
+  await page.getByRole("button", { name: "注册账号" }).click();
+  await expect(page.getByLabel("确认密码")).toBeVisible();
+  await expect(page.getByRole("button", { name: "创建账号" })).toBeVisible();
 });
 
 test("redirects an unauthenticated workspace visit to login", async ({
