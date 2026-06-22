@@ -2,6 +2,7 @@ type GroundingRecord = {
   id: string;
   achievements: string;
   evidence: string;
+  challenges: string;
   processNotes: string;
   ao1Note: string;
   ao2Note: string;
@@ -13,6 +14,7 @@ type GroundingRecord = {
 const EVIDENCE_FIELDS = [
   "achievements",
   "evidence",
+  "challenges",
   "processNotes",
   "ao1Note",
   "ao2Note",

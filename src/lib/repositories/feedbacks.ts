@@ -59,6 +59,7 @@ type FeedbackGroundingRecordRow = {
   id: string;
   achievements: string;
   evidence: string;
+  challenges: string;
   process_notes: string;
   ao1_note: string;
   ao2_note: string;
@@ -71,6 +72,7 @@ export type FeedbackGroundingRecord = {
   id: string;
   achievements: string;
   evidence: string;
+  challenges: string;
   processNotes: string;
   ao1Note: string;
   ao2Note: string;
@@ -359,7 +361,7 @@ export async function loadFeedbackGroundingRecords(
   const result = await db
     .from("daily_records")
     .select(
-      "id,achievements,evidence,process_notes,ao1_note,ao2_note,ao3_note,ao4_note,next_plan",
+      "id,achievements,evidence,challenges,process_notes,ao1_note,ao2_note,ao3_note,ao4_note,next_plan",
     )
     .eq("owner_id", ownerId)
     .in("id", [...contextRecordIds]);
@@ -373,6 +375,7 @@ export async function loadFeedbackGroundingRecords(
       id: row.id,
       achievements: row.achievements,
       evidence: row.evidence,
+      challenges: row.challenges,
       processNotes: row.process_notes,
       ao1Note: row.ao1_note,
       ao2Note: row.ao2_note,

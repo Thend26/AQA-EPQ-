@@ -10,6 +10,7 @@ const records = [
     id: "record-1",
     achievements: "筛选并批注了四篇资料。",
     evidence: "完成 900 字研究日志",
+    challenges: "仍需区分相关关系与因果关系",
     nextPlan: "制作来源比较表",
     processNotes: "能主动说明取舍理由",
     ao1Note: "按计划推进",
@@ -24,12 +25,27 @@ describe("evidence grounding corpus", () => {
     expect(buildEvidenceCorpus(records).map(({ id }) => id)).toEqual([
       "record-1:achievements",
       "record-1:evidence",
+      "record-1:challenges",
       "record-1:processNotes",
       "record-1:ao1Note",
       "record-1:ao2Note",
       "record-1:ao4Note",
       "record-1:nextPlan",
     ]);
+  });
+
+  test("accepts a student's recorded challenge as traceable evidence", () => {
+    const corpus = buildEvidenceCorpus(records);
+
+    expect(
+      mapEvidenceToCanonicalIds(
+        ["仍需区分相关关系与因果关系"],
+        corpus,
+      ),
+    ).toEqual({
+      ids: ["record-1:challenges"],
+      unsupported: [],
+    });
   });
 
   test("maps normalized substrings and meaningful token overlap", () => {

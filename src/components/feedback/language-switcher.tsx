@@ -22,8 +22,9 @@ export function LanguageSwitcher({
   return (
     <div className="space-y-2">
       {canChangeMode ? (
-        <fieldset disabled={disabled}>
-          <legend>选择反馈输出语言</legend>
+        <fieldset disabled={disabled} className="space-y-2">
+          <legend className="font-medium">选择反馈输出语言</legend>
+          <div className="grid grid-cols-3 gap-2">
           {(
             [
               ["zh", "中文"],
@@ -34,31 +35,49 @@ export function LanguageSwitcher({
             <button
               key={value}
               aria-pressed={mode === value}
+              className={`rounded-lg border px-2 py-2 text-sm font-medium ${
+                mode === value
+                  ? "border-emerald-700 bg-emerald-800 text-white"
+                  : "border-stone-300 bg-white text-stone-700 hover:border-emerald-500"
+              }`}
               type="button"
               onClick={() => onModeChange(value)}
             >
               {label}
             </button>
           ))}
+          </div>
         </fieldset>
       ) : null}
       {mode === "bilingual" ? (
-        <fieldset disabled={disabled}>
-          <legend>切换双语内容</legend>
-          <button
-            aria-pressed={active === "zh"}
-            type="button"
-            onClick={() => onActiveChange("zh")}
-          >
-            中文内容
-          </button>
-          <button
-            aria-pressed={active === "en"}
-            type="button"
-            onClick={() => onActiveChange("en")}
-          >
-            英文内容
-          </button>
+        <fieldset disabled={disabled} className="space-y-2">
+          <legend className="font-medium">切换双语内容</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              aria-pressed={active === "zh"}
+              className={`rounded-lg px-3 py-2 text-sm ${
+                active === "zh"
+                  ? "bg-stone-800 text-white"
+                  : "bg-stone-200 text-stone-700"
+              }`}
+              type="button"
+              onClick={() => onActiveChange("zh")}
+            >
+              中文内容
+            </button>
+            <button
+              aria-pressed={active === "en"}
+              className={`rounded-lg px-3 py-2 text-sm ${
+                active === "en"
+                  ? "bg-stone-800 text-white"
+                  : "bg-stone-200 text-stone-700"
+              }`}
+              type="button"
+              onClick={() => onActiveChange("en")}
+            >
+              英文内容
+            </button>
+          </div>
         </fieldset>
       ) : null}
     </div>

@@ -72,6 +72,7 @@ beforeEach(() => {
         id: "record-1",
         achievements: "筛选并批注了四篇资料",
         evidence: "完成900字研究日志",
+        challenges: "",
         nextPlan: "制作来源比较表",
         processNotes: "主动说明取舍理由",
         ao1Note: "按计划推进",

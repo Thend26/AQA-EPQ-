@@ -21,7 +21,7 @@ type DailyRecordFormProps = {
   ownerId: string;
   studentId: string;
   date: string;
-  initialValue?: DailyRecord | null;
+  initialValue?: (DailyRecord & { id?: string; revision?: number }) | null;
   save?: (record: DailyRecord) => Promise<SavedDailyRecord | void>;
   onSaved?: (
     result: SavedDailyRecord | void,
@@ -182,7 +182,7 @@ function DailyRecordFormFields({
     values,
     record,
     save: saveRecord,
-    onSaved: (result, snapshot) => {
+    onPersisted: (result) => {
       if (
         result &&
         typeof result === "object" &&
@@ -191,6 +191,8 @@ function DailyRecordFormFields({
       ) {
         serverRevisionRef.current = Number(result.revision);
       }
+    },
+    onSaved: (result, snapshot) => {
       onSaved?.(result, snapshot);
     },
   });
@@ -260,10 +262,14 @@ function DailyRecordFormFields({
           maxLength={4000}
         />
       </label>
-      <fieldset className="space-y-2">
-        <legend>行为标签</legend>
-        {behaviorTagOptions.map((tag) => (
-          <label className="block" key={tag}>
+      <fieldset className="space-y-3 rounded-xl bg-stone-50 p-4">
+        <legend className="font-semibold">行为标签</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {behaviorTagOptions.map((tag) => (
+          <label
+            className="flex items-center rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
+            key={tag}
+          >
             <input
               type="checkbox"
               checked={values.behaviorTags.includes(tag)}
@@ -273,15 +279,28 @@ function DailyRecordFormFields({
             />
             {tag}
           </label>
-        ))}
+          ))}
+        </div>
       </fieldset>
       <AoObservations values={values} onChange={update} />
-      {status === "pending" ? <p role="status">正在保存</p> : null}
-      {status === "saved" ? <p role="status">已保存</p> : null}
+      {status === "pending" ? (
+        <p className="text-sm text-stone-500" role="status">
+          正在保存
+        </p>
+      ) : null}
+      {status === "saved" ? (
+        <p className="text-sm font-medium text-emerald-700" role="status">
+          已保存
+        </p>
+      ) : null}
       {status === "failure" ? (
-        <div role="alert">
+        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-700" role="alert">
           <p>保存失败或记录已被更新，请重试；若仍失败请刷新页面。</p>
-          <button type="button" onClick={retry}>
+          <button
+            className="mt-2 rounded-lg bg-red-700 px-3 py-2 font-semibold text-white"
+            type="button"
+            onClick={retry}
+          >
             立即重试
           </button>
         </div>

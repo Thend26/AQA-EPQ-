@@ -66,6 +66,12 @@ const deletedStudentResponseSchema = z.object({
   data: z.object({ id: z.string().min(1) }),
 });
 
+function shiftDate(date: string, days: number) {
+  const [year, month, day] = date.split("-").map(Number);
+  const shifted = new Date(Date.UTC(year, month - 1, day + days));
+  return shifted.toISOString().slice(0, 10);
+}
+
 export function WorkspaceShell({
   ownerId,
   profileName,
@@ -119,6 +125,14 @@ export function WorkspaceShell({
   function selectStudent(id: string) {
     const params = new URLSearchParams({ student: id, date });
     go(`/workspace?${params.toString()}`);
+  }
+
+  function selectDate(nextDate?: string) {
+    const params = new URLSearchParams();
+    if (selectedStudent?.id) params.set("student", selectedStudent.id);
+    if (nextDate) params.set("date", nextDate);
+    const query = params.toString();
+    go(query ? `/workspace?${query}` : "/workspace");
   }
 
   async function saveStudent(input: StudentProfile) {
@@ -223,15 +237,55 @@ export function WorkspaceShell({
           {selectedStudent ? (
             <>
               <section className="rounded-2xl bg-emerald-900 p-5 text-white shadow-sm">
-                <p className="text-sm text-emerald-200">
-                  {selectedStudent.grade} 年级 · {date}
-                </p>
-                <h1 className="mt-1 text-2xl font-semibold">
-                  {selectedStudent.displayName}
-                </h1>
-                <p className="mt-2 break-words text-emerald-50">
-                  {selectedStudent.projectTitle}
-                </p>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm text-emerald-200">
+                      {selectedStudent.grade} 年级 · {date}
+                    </p>
+                    <h1 className="mt-1 text-2xl font-semibold">
+                      {selectedStudent.displayName}
+                    </h1>
+                    <p className="mt-2 break-words text-emerald-50">
+                      {selectedStudent.projectTitle}
+                    </p>
+                  </div>
+                  <div className="grid shrink-0 grid-cols-[auto_minmax(8.5rem,1fr)_auto] gap-2">
+                    <button
+                      type="button"
+                      aria-label="上一天"
+                      className="rounded-lg border border-emerald-700 px-3 py-2 hover:bg-emerald-800"
+                      onClick={() => selectDate(shiftDate(date, -1))}
+                    >
+                      ‹
+                    </button>
+                    <label className="sr-only" htmlFor="workspace-date">
+                      查看日期
+                    </label>
+                    <input
+                      id="workspace-date"
+                      aria-label="查看日期"
+                      type="date"
+                      value={date}
+                      className="m-0 border-emerald-700 bg-emerald-950 text-white"
+                      onChange={(event) => selectDate(event.target.value)}
+                    />
+                    <button
+                      type="button"
+                      aria-label="下一天"
+                      className="rounded-lg border border-emerald-700 px-3 py-2 hover:bg-emerald-800"
+                      onClick={() => selectDate(shiftDate(date, 1))}
+                    >
+                      ›
+                    </button>
+                    <button
+                      type="button"
+                      className="col-span-3 rounded-lg border border-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-800"
+                      onClick={() => selectDate()}
+                    >
+                      回到今天
+                    </button>
+                  </div>
+                </div>
                 {selectedStudent.currentFocus ? (
                   <p className="mt-3 text-sm text-emerald-100">
                     当前关注：{selectedStudent.currentFocus}

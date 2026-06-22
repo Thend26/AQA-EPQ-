@@ -25,6 +25,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 test("renders all record fields, behavior tags, and focused AO observations", () => {
@@ -158,6 +159,37 @@ test("debounces a valid cloud save by 800ms and reports success", async () => {
   expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toBeNull();
 });
 
+test("does not save the same unchanged snapshot again after reporting success", async () => {
+  vi.useFakeTimers();
+  const save = vi.fn().mockResolvedValue(undefined);
+  render(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      save={save}
+    />,
+  );
+
+  fireEvent.change(screen.getByLabelText("今日完成成果"), {
+    target: { value: "筛选了四篇文献" },
+  });
+  fireEvent.change(screen.getByLabelText("明日计划"), {
+    target: { value: "比较研究方法" },
+  });
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800);
+  });
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("status")).toHaveTextContent("已保存");
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1600);
+  });
+  expect(save).toHaveBeenCalledTimes(1);
+});
+
 test("reports the saved record result with the acknowledged snapshot", async () => {
   vi.useFakeTimers();
   const savedRecord = {
@@ -264,6 +296,112 @@ test("serializes saves and sends the latest queued snapshot after completion", a
   });
   expect(screen.getByRole("status")).toHaveTextContent("已保存");
   expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toBeNull();
+});
+
+test("uses the server revision returned by an older successful save for the queued save", async () => {
+  vi.useFakeTimers();
+  const firstResponse = deferred<{
+    ok: boolean;
+    json: () => Promise<{ data: Record<string, unknown> }>;
+  }>();
+  const fetchMock = vi
+    .fn()
+    .mockImplementationOnce(() => firstResponse.promise)
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: {
+          id: "323e4567-e89b-42d3-a456-426614174000",
+          studentId,
+          recordDate: date,
+          campDay: 1,
+          achievements: "第二版成果",
+          evidence: "新增证据",
+          challenges: "",
+          nextPlan: "第一版计划",
+          processNotes: "",
+          behaviorTags: [],
+          ao1Note: "",
+          ao2Note: "",
+          ao3Note: "",
+          ao4Note: "",
+          revision: 2,
+        },
+      }),
+    });
+  vi.stubGlobal("fetch", fetchMock);
+
+  render(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      initialValue={{
+        studentId,
+        recordDate: date,
+        campDay: 1,
+        achievements: "初始成果",
+        evidence: "",
+        challenges: "",
+        nextPlan: "第一版计划",
+        processNotes: "",
+        behaviorTags: [],
+        ao1Note: "",
+        ao2Note: "",
+        ao3Note: "",
+        ao4Note: "",
+        revision: 0,
+      }}
+    />,
+  );
+
+  fireEvent.change(screen.getByLabelText("今日完成成果"), {
+    target: { value: "第二版成果" },
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800);
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+
+  fireEvent.change(screen.getByLabelText("成果证据或数量信息"), {
+    target: { value: "新增证据" },
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800);
+  });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+
+  await act(async () => {
+    firstResponse.resolve({
+      ok: true,
+      json: async () => ({
+        data: {
+          id: "323e4567-e89b-42d3-a456-426614174000",
+          studentId,
+          recordDate: date,
+          campDay: 1,
+          achievements: "第二版成果",
+          evidence: "",
+          challenges: "",
+          nextPlan: "第一版计划",
+          processNotes: "",
+          behaviorTags: [],
+          ao1Note: "",
+          ao2Note: "",
+          ao3Note: "",
+          ao4Note: "",
+          revision: 1,
+        },
+      }),
+    });
+    await firstResponse.promise;
+  });
+
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toMatchObject({
+    evidence: "新增证据",
+    expectedRevision: 1,
+  });
 });
 
 test("keeps the draft and retries the same snapshot after autosave fails", async () => {

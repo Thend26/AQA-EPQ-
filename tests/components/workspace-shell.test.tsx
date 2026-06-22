@@ -143,6 +143,41 @@ test("does not replace the server business date on mount", () => {
   expect(navigate).not.toHaveBeenCalled();
 });
 
+test("navigates between record dates while preserving the selected student", async () => {
+  const user = userEvent.setup();
+  const navigate = vi.fn();
+  render(<WorkspaceShell {...baseProps} navigate={navigate} />);
+
+  await user.click(screen.getByRole("button", { name: "上一天" }));
+  expect(navigate).toHaveBeenLastCalledWith(
+    `/workspace?student=${student.id}&date=2026-07-17`,
+  );
+
+  await user.click(screen.getByRole("button", { name: "下一天" }));
+  expect(navigate).toHaveBeenLastCalledWith(
+    `/workspace?student=${student.id}&date=2026-07-19`,
+  );
+
+  fireEvent.change(screen.getByLabelText("查看日期"), {
+    target: { value: "2026-07-21" },
+  });
+  expect(navigate).toHaveBeenLastCalledWith(
+    `/workspace?student=${student.id}&date=2026-07-21`,
+  );
+});
+
+test("returns to today's server-selected workspace date", async () => {
+  const user = userEvent.setup();
+  const navigate = vi.fn();
+  render(<WorkspaceShell {...baseProps} navigate={navigate} />);
+
+  await user.click(screen.getByRole("button", { name: "回到今天" }));
+
+  expect(navigate).toHaveBeenLastCalledWith(
+    `/workspace?student=${student.id}`,
+  );
+});
+
 test("enables generation with the id returned by the first record save without refreshing", async () => {
   vi.useFakeTimers();
   localStorage.clear();

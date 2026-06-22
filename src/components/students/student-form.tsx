@@ -143,8 +143,16 @@ function StudentFormFields({ initialValue, onSave }: StudentFormProps) {
           maxLength={1000}
         />
       </label>
-      {error ? <p role="alert">{error}</p> : null}
-      <button disabled={pending} type="submit">
+      {error ? (
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button
+        className="rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
+        disabled={pending}
+        type="submit"
+      >
         {pending ? "保存中…" : initialValue ? "保存修改" : "新增学生"}
       </button>
     </form>

@@ -145,10 +145,12 @@ export function FeedbackAssistant({
   }
 
   return (
-    <section aria-label="AI 反馈助手" className="space-y-4">
-      <div>
-        <h2>上下文摘要</h2>
-        <p>{contextSummary}</p>
+    <section aria-label="AI 反馈助手" className="space-y-5">
+      <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+        <h2 className="font-semibold text-emerald-950">AI 反馈助手</h2>
+        <p className="mt-1 text-sm leading-6 text-emerald-800">
+          {contextSummary}
+        </p>
       </div>
 
       <LanguageSwitcher
@@ -191,9 +193,9 @@ export function FeedbackAssistant({
         />
       </label>
 
-      <div>
-        <h3>引用证据</h3>
-        <ul>
+      <div className="rounded-xl border border-stone-200 bg-white p-4">
+        <h3 className="font-semibold">引用证据</h3>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-stone-600">
           {visibleDraft.evidenceUsed.map((evidence, index) => (
             <li key={`${index}:${evidence}`}>{evidence}</li>
           ))}
@@ -201,9 +203,12 @@ export function FeedbackAssistant({
       </div>
 
       {issues.length > 0 ? (
-        <div aria-label="质量问题">
-          <h3>归档前需处理</h3>
-          <ul>
+        <div
+          aria-label="质量问题"
+          className="rounded-xl border border-amber-200 bg-amber-50 p-4"
+        >
+          <h3 className="font-semibold text-amber-900">归档前需处理</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
             {issues.map((issue) => (
               <li key={issue}>{issue}</li>
             ))}
@@ -221,13 +226,26 @@ export function FeedbackAssistant({
         />
       </label>
 
-      {error ? <p role="alert">{error}</p> : null}
-      {pending ? <p role="status">请求处理中</p> : null}
-      {finalized ? <p role="status">已归档</p> : null}
+      {error ? (
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {pending ? (
+        <p className="text-sm text-stone-600" role="status">
+          请求处理中
+        </p>
+      ) : null}
+      {finalized ? (
+        <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800" role="status">
+          已归档
+        </p>
+      ) : null}
 
-      <div>
+      <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
         <button
           type="button"
+          className="rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
           disabled={immutable || !generate}
           onClick={() =>
             run("generate", async () => {
@@ -243,6 +261,7 @@ export function FeedbackAssistant({
         </button>
         <button
           type="button"
+          className="rounded-xl border border-emerald-700 bg-white px-4 py-2.5 font-semibold text-emerald-800 hover:bg-emerald-50"
           disabled={
             immutable || !revise || instruction.trim().length === 0
           }
@@ -264,6 +283,7 @@ export function FeedbackAssistant({
         </button>
         <button
           type="button"
+          className="rounded-xl bg-orange-500 px-4 py-2.5 font-semibold text-white hover:bg-orange-600"
           disabled={immutable || !finalize || issues.length > 0}
           onClick={() =>
             run("finalize", async () => {

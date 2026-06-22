@@ -31,6 +31,7 @@ type UseQueuedAutosaveOptions<TResult> = {
   values: DailyRecordDraftValues;
   record: DailyRecord | null;
   save: (record: DailyRecord) => Promise<TResult>;
+  onPersisted?: (result: TResult, snapshot: DailyRecord) => void;
   onSaved?: (result: TResult, snapshot: DailyRecord) => void;
 };
 
@@ -49,6 +50,7 @@ export function useQueuedAutosave<TResult>({
   values,
   record,
   save,
+  onPersisted,
   onSaved,
 }: UseQueuedAutosaveOptions<TResult>): AutosaveState {
   const [settled, setSettled] = useState<{
@@ -57,12 +59,21 @@ export function useQueuedAutosave<TResult>({
   } | null>(null);
   const activeRef = useRef(true);
   const latestRef = useRef({ identity, revision, values });
+  const saveRef = useRef(save);
+  const onPersistedRef = useRef(onPersisted);
+  const onSavedRef = useRef(onSaved);
   const inFlightRef = useRef<SaveJob | null>(null);
   const queuedRef = useRef<SaveJob | null>(null);
 
   useEffect(() => {
     latestRef.current = { identity, revision, values };
   }, [identity, revision, values]);
+
+  useEffect(() => {
+    saveRef.current = save;
+    onPersistedRef.current = onPersisted;
+    onSavedRef.current = onSaved;
+  }, [onPersisted, onSaved, save]);
 
   useEffect(() => {
     activeRef.current = true;
@@ -76,13 +87,15 @@ export function useQueuedAutosave<TResult>({
     function runSave(job: SaveJob) {
       inFlightRef.current = job;
 
-      void save(job.record).then(
+      void saveRef.current(job.record).then(
         (result) => {
           inFlightRef.current = null;
           if (!activeRef.current) {
             queuedRef.current = null;
             return;
           }
+
+          onPersistedRef.current?.(result, job.record);
 
           const latest = latestRef.current;
           const canAcknowledge =
@@ -99,7 +112,7 @@ export function useQueuedAutosave<TResult>({
             if (stored && sameValues(stored, job.values)) {
               removeDailyRecordDraft(storage, job.identity);
             }
-            onSaved?.(result, job.record);
+            onSavedRef.current?.(result, job.record);
             setSettled({ revision: job.revision, status: "saved" });
           }
 
@@ -132,7 +145,7 @@ export function useQueuedAutosave<TResult>({
         },
       );
     },
-    [draftIdentity, onSaved, save, storage],
+    [draftIdentity, storage],
   );
 
   const enqueueSave = useCallback(
