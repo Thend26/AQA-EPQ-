@@ -30,10 +30,13 @@ describe("deployment artifacts", () => {
     expect(readme).toContain("Node.js 20.9");
     expect(readme).toContain("202606200001_initial_schema.sql");
     expect(readme).toContain("202606210003_daily_record_revisions.sql");
+    expect(readme).toContain("202606220001_auth_profiles.sql");
     expect(readme).toContain("npm run test:e2e:smoke");
     expect(readme).toContain("Vercel");
     expect(readme).toContain("Row Level Security");
     expect(readme).toContain("匿名");
+    expect(readme).toContain("邮箱确认");
+    expect(readme).toContain("/auth/callback");
   });
 
   it("includes Playwright configuration and anonymized seed guidance", () => {

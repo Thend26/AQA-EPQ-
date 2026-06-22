@@ -39,8 +39,11 @@ npm run dev
 2. `supabase/migrations/202606210001_feedback_versions.sql`
 3. `supabase/migrations/202606210002_feedback_write_permissions.sql`
 4. `supabase/migrations/202606210003_daily_record_revisions.sql`
+5. `supabase/migrations/202606220001_auth_profiles.sql`
 
-随后在 Authentication 中创建唯一的私人助教账号。首版不开放注册。
+最后一项迁移会为新注册的 Auth 用户自动创建 `profiles` 记录，并回填已经
+存在但缺少资料记录的账号。网站允许助教使用邮箱注册；必须完成邮箱确认后
+再返回登录页登录。
 
 如需测试数据，阅读 `supabase/seed.sql`，把占位用户 UUID 替换为匿名测试
 账号 UUID 后再取消注释。不要使用学生真实姓名、联系方式或其他个人信息。
@@ -66,6 +69,10 @@ npm run dev
 - Site URL：本地 `http://localhost:3000`，生产环境为 Vercel 域名；
 - Redirect URL：加入 `http://localhost:3000/auth/callback`；
 - 生产环境加入 `https://你的域名/auth/callback`。
+
+在 Authentication → Providers → Email 中保持“邮箱确认”开启。用户注册后
+会收到验证邮件，验证链接经 `/auth/callback` 返回登录页；验证过程不会让
+用户直接进入工作台。
 
 ## 验证
 
@@ -105,7 +112,8 @@ npm run test:e2e
 2. 添加 `.env.example` 中列出的生产环境变量。
 3. 将 `NEXT_PUBLIC_SITE_URL` 设置为正式 HTTPS 域名。
 4. 在 Supabase 添加正式 Site URL 与 callback URL。
-5. 部署后先用匿名账号验证登录、每日记录、三种语言、revision 冲突和归档。
+5. 部署后先用非测试邮箱验证注册、邮箱确认、重新登录和创建学生，再用匿名
+   测试数据验证每日记录、三种语言、revision 冲突和归档。
 6. 在浏览器开发者工具中确认响应和源码不包含 service role 或 DeepSeek Key。
 
 ## 隐私说明
