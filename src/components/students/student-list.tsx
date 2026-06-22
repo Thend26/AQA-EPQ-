@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import type { Student } from "@/lib/domain/types";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 type StudentListProps = {
   students: Student[];
@@ -77,7 +78,7 @@ export function StudentList({
             <span className="mt-1 block break-words text-sm leading-5 text-stone-600">
               {student.grade} 年级 · {student.projectTitle}
             </span>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 aria-label={`编辑${student.displayName}`}
                 className="rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-stone-700 hover:border-emerald-500 hover:text-emerald-800"
@@ -87,6 +88,7 @@ export function StudentList({
                 编辑<span className="sr-only">{student.displayName}</span>
               </button>
               <button
+                aria-busy={deletingId === student.id}
                 aria-label={
                   deletingId === student.id
                     ? "删除中…"
@@ -98,7 +100,10 @@ export function StudentList({
                 type="button"
               >
                 {deletingId === student.id ? (
-                  "删除中…"
+                  <span className="inline-flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    <span>删除中…</span>
+                  </span>
                 ) : (
                   <>
                     删除<span className="sr-only">{student.displayName}</span>

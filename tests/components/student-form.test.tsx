@@ -79,3 +79,27 @@ test("supports editing an existing student", () => {
   expect(screen.getByLabelText("学生称呼")).toHaveValue("林同学");
   expect(screen.getByRole("button", { name: "保存修改" })).toBeInTheDocument();
 });
+
+test("shows a spinner and busy state while saving", async () => {
+  const user = userEvent.setup();
+  let resolveSave: (() => void) | undefined;
+  const onSave = vi.fn(
+    () =>
+      new Promise<void>((resolve) => {
+        resolveSave = resolve;
+      }),
+  );
+  render(<StudentForm onSave={onSave} />);
+
+  await user.type(screen.getByLabelText("学生称呼"), "林同学");
+  await user.type(screen.getByLabelText("EPQ 研究题目"), "Attention");
+  await user.type(screen.getByLabelText("营地开始日期"), "2026-07-16");
+  await user.click(screen.getByRole("button", { name: "新增学生" }));
+
+  const button = screen.getByRole("button", { name: "保存中…" });
+  expect(button).toBeDisabled();
+  expect(button).toHaveAttribute("aria-busy", "true");
+  expect(button.querySelector('[data-testid="loading-spinner"]')).not.toBeNull();
+
+  resolveSave?.();
+});

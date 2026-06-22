@@ -95,7 +95,10 @@ test("disables deletion while pending", async () => {
 
   await user.click(screen.getByRole("button", { name: /删除林同学/ }));
 
-  expect(screen.getByRole("button", { name: "删除中…" })).toBeDisabled();
+  const button = screen.getByRole("button", { name: "删除中…" });
+  expect(button).toBeDisabled();
+  expect(button).toHaveAttribute("aria-busy", "true");
+  expect(button.querySelector('[data-testid="loading-spinner"]')).not.toBeNull();
   resolveDelete?.();
 });
 

@@ -7,6 +7,7 @@ import {
   type Student,
   type StudentProfile,
 } from "@/lib/domain/types";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 type StudentFormProps = {
   initialValue?: Student;
@@ -149,11 +150,17 @@ function StudentFormFields({ initialValue, onSave }: StudentFormProps) {
         </p>
       ) : null}
       <button
-        className="rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
+        aria-busy={pending}
+        className="min-h-11 rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
         disabled={pending}
         type="submit"
       >
-        {pending ? "保存中…" : initialValue ? "保存修改" : "新增学生"}
+        <span className="inline-flex items-center justify-center gap-2">
+          {pending ? <LoadingSpinner size="sm" /> : null}
+          <span>
+            {pending ? "保存中…" : initialValue ? "保存修改" : "新增学生"}
+          </span>
+        </span>
       </button>
     </form>
   );

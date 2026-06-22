@@ -136,7 +136,11 @@ test("debounces a valid cloud save by 800ms and reports success", async () => {
   });
 
   expect(save).not.toHaveBeenCalled();
-  expect(screen.getByRole("status")).toHaveTextContent("正在保存");
+  const pendingStatus = screen.getByRole("status");
+  expect(pendingStatus).toHaveTextContent("正在保存");
+  expect(
+    pendingStatus.querySelector('[data-testid="loading-spinner"]'),
+  ).not.toBeNull();
 
   await act(async () => {
     await vi.advanceTimersByTimeAsync(799);

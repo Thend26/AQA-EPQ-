@@ -161,7 +161,12 @@ describe("feedback language and pending state", () => {
     await user.type(screen.getByLabelText("修改要求"), "更简洁");
     await user.click(screen.getByRole("button", { name: "发送修改要求" }));
 
-    expect(screen.getByRole("button", { name: "修改中…" })).toBeDisabled();
+    const reviseButton = screen.getByRole("button", { name: "修改中…" });
+    expect(reviseButton).toBeDisabled();
+    expect(reviseButton).toHaveAttribute("aria-busy", "true");
+    expect(
+      reviseButton.querySelector('[data-testid="loading-spinner"]'),
+    ).not.toBeNull();
     expect(screen.getByRole("button", { name: "确认归档" })).toBeDisabled();
     expect(screen.getByLabelText("中文反馈")).toBeDisabled();
     expect(screen.getByLabelText("下一步建议")).toBeDisabled();

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { LanguageSwitcher } from "@/components/feedback/language-switcher";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
 import { checkFeedbackQuality } from "@/lib/domain/quality";
 import type { LanguageMode } from "@/lib/domain/types";
@@ -244,8 +245,9 @@ export function FeedbackAssistant({
 
       <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
         <button
+          aria-busy={pending === "generate"}
           type="button"
-          className="rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
+          className="min-h-11 rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
           disabled={immutable || !generate}
           onClick={() =>
             run("generate", async () => {
@@ -257,11 +259,15 @@ export function FeedbackAssistant({
             })
           }
         >
-          {pending === "generate" ? "生成中…" : "生成反馈"}
+          <span className="inline-flex items-center justify-center gap-2">
+            {pending === "generate" ? <LoadingSpinner size="sm" /> : null}
+            <span>{pending === "generate" ? "生成中…" : "生成反馈"}</span>
+          </span>
         </button>
         <button
+          aria-busy={pending === "revise"}
           type="button"
-          className="rounded-xl border border-emerald-700 bg-white px-4 py-2.5 font-semibold text-emerald-800 hover:bg-emerald-50"
+          className="min-h-11 rounded-xl border border-emerald-700 bg-white px-4 py-2.5 font-semibold text-emerald-800 hover:bg-emerald-50"
           disabled={
             immutable || !revise || instruction.trim().length === 0
           }
@@ -279,11 +285,17 @@ export function FeedbackAssistant({
             })
           }
         >
-          {pending === "revise" ? "修改中…" : "发送修改要求"}
+          <span className="inline-flex items-center justify-center gap-2">
+            {pending === "revise" ? <LoadingSpinner size="sm" /> : null}
+            <span>
+              {pending === "revise" ? "修改中…" : "发送修改要求"}
+            </span>
+          </span>
         </button>
         <button
+          aria-busy={pending === "finalize"}
           type="button"
-          className="rounded-xl bg-orange-500 px-4 py-2.5 font-semibold text-white hover:bg-orange-600"
+          className="min-h-11 rounded-xl bg-orange-500 px-4 py-2.5 font-semibold text-white hover:bg-orange-600"
           disabled={immutable || !finalize || issues.length > 0}
           onClick={() =>
             run("finalize", async () => {
@@ -297,7 +309,10 @@ export function FeedbackAssistant({
             })
           }
         >
-          {pending === "finalize" ? "归档中…" : "确认归档"}
+          <span className="inline-flex items-center justify-center gap-2">
+            {pending === "finalize" ? <LoadingSpinner size="sm" /> : null}
+            <span>{pending === "finalize" ? "归档中…" : "确认归档"}</span>
+          </span>
         </button>
       </div>
     </section>

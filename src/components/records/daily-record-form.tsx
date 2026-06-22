@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
 import { AoObservations } from "@/components/records/ao-observations";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useQueuedAutosave } from "@/components/records/use-queued-autosave";
 import {
   getBrowserStorage,
@@ -284,8 +285,12 @@ function DailyRecordFormFields({
       </fieldset>
       <AoObservations values={values} onChange={update} />
       {status === "pending" ? (
-        <p className="text-sm text-stone-500" role="status">
-          正在保存
+        <p
+          className="inline-flex items-center gap-2 text-sm text-stone-500"
+          role="status"
+        >
+          <LoadingSpinner size="sm" />
+          <span>正在保存</span>
         </p>
       ) : null}
       {status === "saved" ? (
