@@ -5,6 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { AoObservations } from "@/components/records/ao-observations";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useQueuedAutosave } from "@/components/records/use-queued-autosave";
+import { campDayForDate } from "@/lib/camp/date";
 import {
   getBrowserStorage,
   readDailyRecordDraft,
@@ -22,6 +23,7 @@ type DailyRecordFormProps = {
   ownerId: string;
   studentId: string;
   date: string;
+  campStartDate: string;
   initialValue?: (DailyRecord & { id?: string; revision?: number }) | null;
   save?: (record: DailyRecord) => Promise<SavedDailyRecord | void>;
   onSaved?: (
@@ -101,6 +103,7 @@ function DailyRecordFormFields({
   ownerId,
   studentId,
   date,
+  campStartDate,
   initialValue,
   save,
   onSaved,
@@ -115,11 +118,21 @@ function DailyRecordFormFields({
     [date, ownerId, studentId],
   );
   const storage = useMemo(() => getBrowserStorage(), []);
+  const campDay = useMemo(
+    () => campDayForDate(date, campStartDate),
+    [campStartDate, date],
+  );
+  const isLocked = campDay === null;
   const initialValues = useMemo(
-    () =>
-      readDailyRecordDraft(storage, key, draftIdentity) ??
-      formValues(initialValue),
-    [draftIdentity, initialValue, key, storage],
+    () => {
+      const restored =
+        readDailyRecordDraft(storage, key, draftIdentity) ??
+        formValues(initialValue);
+      return campDay === null
+        ? restored
+        : { ...restored, campDay };
+    },
+    [campDay, draftIdentity, initialValue, key, storage],
   );
   const [values, setValues] =
     useState<DailyRecordDraftValues>(initialValues);
@@ -131,6 +144,7 @@ function DailyRecordFormFields({
   );
 
   function replaceValues(next: DailyRecordDraftValues) {
+    if (isLocked) return;
     const revision = revisionRef.current + 1;
     revisionRef.current = revision;
     setRevision(revision);
@@ -161,13 +175,15 @@ function DailyRecordFormFields({
   }
 
   const record = useMemo(() => {
+    if (campDay === null) return null;
     const parsed = dailyRecordSchema.safeParse({
       studentId,
       recordDate: date,
       ...values,
+      campDay,
     });
     return parsed.success ? parsed.data : null;
-  }, [date, studentId, values]);
+  }, [campDay, date, studentId, values]);
   const saveRecord = useCallback(
     async (nextRecord: DailyRecord) => {
       if (save) return save(nextRecord);
@@ -204,86 +220,86 @@ function DailyRecordFormFields({
         日期
         <input name="recordDate" type="date" value={date} readOnly />
       </label>
-      <label className="block">
-        营地天数
-        <input
-          name="campDay"
-          type="number"
-          min={1}
-          max={100}
-          value={values.campDay}
-          onChange={(event) => update("campDay", Number(event.target.value))}
-          required
-        />
-      </label>
-      <label className="block">
-        今日完成成果
-        <textarea
-          name="achievements"
-          value={values.achievements}
-          onChange={(event) => update("achievements", event.target.value)}
-          maxLength={4000}
-          required
-        />
-      </label>
-      <label className="block">
-        成果证据或数量信息
-        <textarea
-          name="evidence"
-          value={values.evidence}
-          onChange={(event) => update("evidence", event.target.value)}
-          maxLength={4000}
-        />
-      </label>
-      <label className="block">
-        遇到的困难
-        <textarea
-          name="challenges"
-          value={values.challenges}
-          onChange={(event) => update("challenges", event.target.value)}
-          maxLength={4000}
-        />
-      </label>
-      <label className="block">
-        明日计划
-        <textarea
-          name="nextPlan"
-          value={values.nextPlan}
-          onChange={(event) => update("nextPlan", event.target.value)}
-          maxLength={4000}
-          required
-        />
-      </label>
-      <label className="block">
-        助教过程观察
-        <textarea
-          name="processNotes"
-          value={values.processNotes}
-          onChange={(event) => update("processNotes", event.target.value)}
-          maxLength={4000}
-        />
-      </label>
-      <fieldset className="space-y-3 rounded-xl bg-stone-50 p-4">
-        <legend className="font-semibold">行为标签</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {behaviorTagOptions.map((tag) => (
-          <label
-            className="flex items-center rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
-            key={tag}
-          >
-            <input
-              type="checkbox"
-              checked={values.behaviorTags.includes(tag)}
-              onChange={(event) =>
-                toggleBehaviorTag(tag, event.target.checked)
-              }
-            />
-            {tag}
-          </label>
-          ))}
-        </div>
+      {campDay === null ? (
+        <p
+          className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900"
+          role="status"
+        >
+          营地尚未开始，该日期仅供查看
+        </p>
+      ) : (
+        <p className="font-medium text-emerald-800">营地第 {campDay} 天</p>
+      )}
+      <fieldset className="space-y-4" disabled={isLocked}>
+        <label className="block">
+          今日完成成果
+          <textarea
+            name="achievements"
+            value={values.achievements}
+            onChange={(event) => update("achievements", event.target.value)}
+            maxLength={4000}
+            required
+          />
+        </label>
+        <label className="block">
+          成果证据或数量信息
+          <textarea
+            name="evidence"
+            value={values.evidence}
+            onChange={(event) => update("evidence", event.target.value)}
+            maxLength={4000}
+          />
+        </label>
+        <label className="block">
+          遇到的困难
+          <textarea
+            name="challenges"
+            value={values.challenges}
+            onChange={(event) => update("challenges", event.target.value)}
+            maxLength={4000}
+          />
+        </label>
+        <label className="block">
+          明日计划
+          <textarea
+            name="nextPlan"
+            value={values.nextPlan}
+            onChange={(event) => update("nextPlan", event.target.value)}
+            maxLength={4000}
+            required
+          />
+        </label>
+        <label className="block">
+          助教过程观察
+          <textarea
+            name="processNotes"
+            value={values.processNotes}
+            onChange={(event) => update("processNotes", event.target.value)}
+            maxLength={4000}
+          />
+        </label>
+        <fieldset className="space-y-3 rounded-xl bg-stone-50 p-4">
+          <legend className="font-semibold">行为标签</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {behaviorTagOptions.map((tag) => (
+              <label
+                className="flex items-center rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm"
+                key={tag}
+              >
+                <input
+                  type="checkbox"
+                  checked={values.behaviorTags.includes(tag)}
+                  onChange={(event) =>
+                    toggleBehaviorTag(tag, event.target.checked)
+                  }
+                />
+                {tag}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <AoObservations values={values} onChange={update} />
       </fieldset>
-      <AoObservations values={values} onChange={update} />
       {status === "pending" ? (
         <p
           className="inline-flex items-center gap-2 text-sm text-stone-500"

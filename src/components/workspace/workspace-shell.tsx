@@ -13,6 +13,7 @@ import { StudentList } from "@/components/students/student-list";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AqaOverview } from "@/components/workspace/aqa-overview";
 import { createFeedbackAdapters } from "@/components/workspace/feedback-adapters";
+import { campDayForDate } from "@/lib/camp/date";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
 import type {
   DailyRecord,
@@ -111,9 +112,14 @@ export function WorkspaceShell({
     [navigate],
   );
 
+  const selectedCampDay = selectedStudent
+    ? campDayForDate(date, selectedStudent.campStartDate)
+    : null;
   const currentDailyRecordId =
-    dailyRecord?.id ??
-    (savedRecord?.identity === recordIdentity ? savedRecord.id : undefined);
+    selectedCampDay === null
+      ? undefined
+      : dailyRecord?.id ??
+        (savedRecord?.identity === recordIdentity ? savedRecord.id : undefined);
   const liveRecord =
     liveDraft?.identity === recordIdentity ? liveDraft.record : dailyRecord;
   const feedbackId = feedback?.id;
@@ -334,6 +340,7 @@ export function WorkspaceShell({
                   ownerId={ownerId}
                   studentId={selectedStudent.id!}
                   date={date}
+                  campStartDate={selectedStudent.campStartDate}
                   initialValue={dailyRecord}
                   onSaved={(result: SavedDailyRecord | void) => {
                     if (result?.id) {

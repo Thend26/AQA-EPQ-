@@ -189,6 +189,37 @@ test("returns to today's server-selected workspace date", async () => {
   );
 });
 
+test("passes the camp start date through and shows the pre-camp locked state", () => {
+  render(
+    <WorkspaceShell
+      {...baseProps}
+      date="2026-07-15"
+      dailyRecord={null}
+    />,
+  );
+
+  expect(screen.getByText("营地尚未开始，该日期仅供查看")).toBeInTheDocument();
+  expect(screen.getByLabelText("今日完成成果")).toBeDisabled();
+  expect(screen.getByRole("button", { name: "生成反馈" })).toBeDisabled();
+});
+
+test("keeps feedback generation disabled before camp when a legacy record has an id", () => {
+  render(
+    <WorkspaceShell
+      {...baseProps}
+      date="2026-07-15"
+      dailyRecord={{
+        ...record,
+        id: "323e4567-e89b-42d3-a456-426614174000",
+        recordDate: "2026-07-15",
+        campDay: 1,
+      }}
+    />,
+  );
+
+  expect(screen.getByRole("button", { name: "生成反馈" })).toBeDisabled();
+});
+
 test("enables generation with the id returned by the first record save without refreshing", async () => {
   vi.useFakeTimers();
   localStorage.clear();

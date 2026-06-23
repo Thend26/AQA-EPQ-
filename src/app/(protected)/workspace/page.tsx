@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
+import { defaultWorkspaceDate } from "@/lib/camp/date";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
 import { getDailyRecord } from "@/lib/repositories/daily-records";
 import { listStudents } from "@/lib/repositories/students";
@@ -32,10 +33,6 @@ export default async function WorkspacePage({
   if (!user) redirect("/login");
 
   const query = await searchParams;
-  const { date, provided } = resolveWorkspaceDate(
-    query.date,
-    safeServerDate(),
-  );
   const [profileResult, studentsResult] = await Promise.all([
     db
       .from("profiles")
@@ -55,6 +52,14 @@ export default async function WorkspacePage({
     students.find((student) => student.id === requestedStudent) ??
     students[0] ??
     null;
+  const today = safeServerDate();
+  const fallbackDate = selectedStudent
+    ? defaultWorkspaceDate(today, selectedStudent.campStartDate)
+    : today;
+  const { date, provided } = resolveWorkspaceDate(
+    query.date,
+    fallbackDate,
+  );
 
   let dailyRecord = null;
   let feedback = null;

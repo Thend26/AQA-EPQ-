@@ -8,6 +8,7 @@ import { draftKey } from "@/lib/domain/drafts";
 const ownerId = "owner-123";
 const studentId = "123e4567-e89b-42d3-a456-426614174000";
 const date = "2026-07-18";
+const campStartDate = "2026-07-16";
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -34,12 +35,12 @@ test("renders all record fields, behavior tags, and focused AO observations", ()
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={async () => {}}
     />,
   );
 
   for (const label of [
-    "营地天数",
     "今日完成成果",
     "成果证据或数量信息",
     "遇到的困难",
@@ -52,6 +53,8 @@ test("renders all record fields, behavior tags, and focused AO observations", ()
   ]) {
     expect(screen.getByLabelText(label)).toBeInTheDocument();
   }
+  expect(screen.getByText("营地第 3 天")).toBeInTheDocument();
+  expect(screen.queryByLabelText("营地天数")).not.toBeInTheDocument();
   expect(screen.getByRole("checkbox", { name: "主动提问" })).toBeInTheDocument();
 });
 
@@ -83,6 +86,7 @@ test("restores the scoped local draft on mount", () => {
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={async () => {}}
     />,
   );
@@ -98,6 +102,7 @@ test("writes edits to the scoped local draft immediately", () => {
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={async () => {}}
     />,
   );
@@ -124,6 +129,7 @@ test("debounces a valid cloud save by 800ms and reports success", async () => {
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -155,6 +161,7 @@ test("debounces a valid cloud save by 800ms and reports success", async () => {
     expect.objectContaining({
       studentId,
       recordDate: date,
+      campDay: 3,
       achievements: "筛选了四篇文献",
       nextPlan: "比较研究方法",
     }),
@@ -171,6 +178,7 @@ test("does not save the same unchanged snapshot again after reporting success", 
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -218,6 +226,7 @@ test("reports the saved record result with the acknowledged snapshot", async () 
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={async () => savedRecord}
       onSaved={onSaved}
     />,
@@ -256,6 +265,7 @@ test("serializes saves and sends the latest queued snapshot after completion", a
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -340,6 +350,7 @@ test("uses the server revision returned by an older successful save for the queu
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       initialValue={{
         studentId,
         recordDate: date,
@@ -419,6 +430,7 @@ test("keeps the draft and retries the same snapshot after autosave fails", async
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -461,6 +473,7 @@ test("cancels the old debounce when switching student or date", async () => {
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -478,6 +491,7 @@ test("cancels the old debounce when switching student or date", async () => {
       ownerId={ownerId}
       studentId={nextStudentId}
       date="2026-07-19"
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -516,6 +530,7 @@ test("an old identity completion cannot clear the new draft or mark it saved", a
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -537,6 +552,7 @@ test("an old identity completion cannot clear the new draft or mark it saved", a
       ownerId={ownerId}
       studentId={nextStudentId}
       date={nextDate}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -586,6 +602,7 @@ test("successful save removes the draft so remount uses the server initial value
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       initialValue={initialValue}
       save={save}
     />,
@@ -605,6 +622,7 @@ test("successful save removes the draft so remount uses the server initial value
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       initialValue={{ ...initialValue, achievements: "服务器最新值" }}
       save={save}
     />,
@@ -620,6 +638,7 @@ test("retains the local draft when unmounted before the debounce", async () => {
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={async () => {}}
     />,
   );
@@ -641,6 +660,7 @@ test("does not consume a queued save after unmount", async () => {
       ownerId={ownerId}
       studentId={studentId}
       date={date}
+      campStartDate={campStartDate}
       save={save}
     />,
   );
@@ -674,4 +694,35 @@ test("does not consume a queued save after unmount", async () => {
   expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toContain(
     "排队成果",
   );
+});
+
+test("locks dates before camp start without creating drafts or autosaving", async () => {
+  vi.useFakeTimers();
+  const save = vi.fn().mockResolvedValue(undefined);
+  render(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date="2026-07-15"
+      campStartDate={campStartDate}
+      save={save}
+    />,
+  );
+
+  expect(screen.getByRole("status")).toHaveTextContent(
+    "营地尚未开始，该日期仅供查看",
+  );
+  expect(screen.getByLabelText("今日完成成果")).toBeDisabled();
+
+  fireEvent.change(screen.getByLabelText("今日完成成果"), {
+    target: { value: "不应保存" },
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800);
+  });
+
+  expect(save).not.toHaveBeenCalled();
+  expect(
+    localStorage.getItem(draftKey(ownerId, studentId, "2026-07-15")),
+  ).toBeNull();
 });
