@@ -15,6 +15,7 @@ import {
   createFeedbackDraft,
   RepositoryStorageUnavailableError,
 } from "@/lib/repositories/feedbacks";
+import { getDeepSeekRuntimeConfig } from "@/lib/settings/deepseek-config";
 
 const generationRequestSchema = z
   .object({
@@ -71,7 +72,12 @@ export async function POST(request: Request) {
   });
 
   try {
-    const draft = await generateWithDeepSeek(prompt);
+    const deepseekConfig = await getDeepSeekRuntimeConfig(auth.db, auth.user.id);
+    if (!deepseekConfig) {
+      return apiError("请先在设置中配置 DeepSeek", 409);
+    }
+
+    const draft = await generateWithDeepSeek(prompt, deepseekConfig);
     if (draft.mode !== parsed.data.languageMode) {
       return apiError("AI generation returned an invalid response", 502);
     }

@@ -11,15 +11,10 @@ import type { FeedbackPrompts } from "@/lib/domain/prompt";
 const DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions";
 const MAX_RESPONSE_BODY_BYTES = 1_048_576;
 
-const deepSeekEnvSchema = z.object({
-  DEEPSEEK_API_KEY: z.string().trim().min(1),
-  DEEPSEEK_MODEL: z.string().trim().min(1).default("deepseek-chat"),
-  DEEPSEEK_TIMEOUT_MS: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(120_000)
-    .default(30_000),
+const deepSeekOptionsSchema = z.object({
+  apiKey: z.string().trim().min(1),
+  model: z.string().trim().min(1),
+  timeoutMs: z.number().int().positive().max(120_000).optional(),
 });
 
 const chatCompletionSchema = z
@@ -67,19 +62,21 @@ export class DeepSeekInvalidResponseError extends DeepSeekError {
   }
 }
 
-function loadConfig() {
-  const parsed = deepSeekEnvSchema.safeParse({
-    DEEPSEEK_API_KEY: process.env.DEEPSEEK_API_KEY,
-    DEEPSEEK_MODEL: process.env.DEEPSEEK_MODEL || undefined,
-    DEEPSEEK_TIMEOUT_MS: process.env.DEEPSEEK_TIMEOUT_MS || undefined,
-  });
+type DeepSeekRequestOptions = z.input<typeof deepSeekOptionsSchema>;
+
+function loadConfig(options: DeepSeekRequestOptions) {
+  const parsed = deepSeekOptionsSchema.safeParse(options);
   if (!parsed.success) {
     throw new DeepSeekError(
       "configuration",
       "AI generation is not configured",
     );
   }
-  return parsed.data;
+  const defaultTimeout = Number(process.env.DEEPSEEK_TIMEOUT_MS || 30_000);
+  return {
+    ...parsed.data,
+    timeoutMs: parsed.data.timeoutMs ?? defaultTimeout,
+  };
 }
 
 function invalidResponse(): DeepSeekInvalidResponseError {
@@ -131,23 +128,24 @@ export async function readLimitedBody(
 
 export async function generateWithDeepSeek(
   prompts: FeedbackPrompts,
+  options: DeepSeekRequestOptions,
 ): Promise<GeneratedFeedback> {
-  const config = loadConfig();
+  const config = loadConfig(options);
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
-    config.DEEPSEEK_TIMEOUT_MS,
+    config.timeoutMs,
   );
 
   try {
     const response = await fetch(DEEPSEEK_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${config.DEEPSEEK_API_KEY}`,
+        Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: config.DEEPSEEK_MODEL,
+        model: config.model,
         messages: [
           { role: "system", content: prompts.system },
           { role: "user", content: prompts.user },
@@ -199,6 +197,45 @@ export async function generateWithDeepSeek(
       throw invalidResponse();
     }
     return parsedFeedback.data;
+  } catch (error) {
+    if (error instanceof DeepSeekError) throw error;
+    if (
+      controller.signal.aborted ||
+      (error instanceof DOMException && error.name === "AbortError")
+    ) {
+      throw new DeepSeekError("timeout", "AI provider request timed out");
+    }
+    throw new DeepSeekError("upstream", "AI provider request failed");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function testDeepSeekConnection(options: DeepSeekRequestOptions) {
+  const config = loadConfig(options);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  try {
+    const response = await fetch(DEEPSEEK_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "user", content: "ping" }],
+        max_tokens: 8,
+        temperature: 0,
+      }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      if (response.status === 429) {
+        throw new DeepSeekError("rate_limit", "AI provider rate limit reached");
+      }
+      throw new DeepSeekError("upstream", "AI provider request failed");
+    }
   } catch (error) {
     if (error instanceof DeepSeekError) throw error;
     if (

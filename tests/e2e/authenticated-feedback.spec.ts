@@ -6,13 +6,13 @@ const credentialsConfigured = Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
     process.env.SUPABASE_SERVICE_ROLE_KEY &&
-    process.env.DEEPSEEK_API_KEY,
+    process.env.E2E_DEEPSEEK_API_KEY,
 );
 
 test("records progress and opens feedback generation", async ({ page }) => {
   test.skip(
     !credentialsConfigured,
-    "Set E2E credentials, Supabase keys, and DEEPSEEK_API_KEY.",
+    "Set E2E credentials, Supabase keys, and E2E_DEEPSEEK_API_KEY for the test tutor account.",
   );
 
   await page.goto("/login");
@@ -20,6 +20,12 @@ test("records progress and opens feedback generation", async ({ page }) => {
   await page.getByLabel("密码").fill(process.env.E2E_PASSWORD!);
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page).toHaveURL(/\/workspace/);
+
+  await page.getByRole("button", { name: "设置" }).click();
+  await page.getByLabel("DeepSeek API Key").fill(process.env.E2E_DEEPSEEK_API_KEY!);
+  await page.getByRole("button", { name: "保存 Key" }).click();
+  await expect(page.getByText("DeepSeek Key 已保存")).toBeVisible();
+  await page.getByRole("button", { name: "关闭" }).click();
 
   const achievement = page.getByLabel("今日完成成果");
   await expect(

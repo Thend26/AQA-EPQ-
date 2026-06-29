@@ -14,11 +14,12 @@ describe("deployment artifacts", () => {
       "NEXT_PUBLIC_SUPABASE_URL",
       "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
       "SUPABASE_SERVICE_ROLE_KEY",
-      "DEEPSEEK_API_KEY",
-      "DEEPSEEK_MODEL",
+      "SETTINGS_ENCRYPTION_KEY",
+      "DEEPSEEK_TIMEOUT_MS",
       "NEXT_PUBLIC_SITE_URL",
       "E2E_EMAIL",
       "E2E_PASSWORD",
+      "E2E_DEEPSEEK_API_KEY",
     ]) {
       expect(env).toContain(`${name}=`);
     }
@@ -31,6 +32,8 @@ describe("deployment artifacts", () => {
     expect(readme).toContain("202606200001_initial_schema.sql");
     expect(readme).toContain("202606210003_daily_record_revisions.sql");
     expect(readme).toContain("202606220001_auth_profiles.sql");
+    expect(readme).toContain("202606230001_camp_day_enforcement.sql");
+    expect(readme).toContain("202606230002_user_settings.sql");
     expect(readme).toContain("npm run test:e2e:smoke");
     expect(readme).toContain("Vercel");
     expect(readme).toContain("Row Level Security");

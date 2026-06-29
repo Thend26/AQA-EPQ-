@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import { SettingsPanel } from "@/components/settings/settings-panel";
 
@@ -10,6 +10,10 @@ const baseSettings = {
   fontWeight: "medium" as const,
   deepseekModel: "chat" as const,
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test("edits appearance and model settings", async () => {
   const user = userEvent.setup();
@@ -62,4 +66,35 @@ test("shows an alert for invalid custom colors", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "请输入 #RRGGBB 格式颜色",
   );
+});
+
+test("saves a personal DeepSeek key without showing it again", async () => {
+  const user = userEvent.setup();
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({ data: { configured: true, last4: "wxyz" } }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+
+  render(
+    <SettingsPanel
+      initialSettings={baseSettings}
+      onClose={() => undefined}
+      onSave={async () => undefined}
+    />,
+  );
+
+  await user.type(screen.getByLabelText("DeepSeek API Key"), "sk-secret-wxyz");
+  await user.click(screen.getByRole("button", { name: "保存 Key" }));
+
+  expect(fetchMock).toHaveBeenCalledWith(
+    "/api/settings/deepseek-key",
+    expect.objectContaining({
+      method: "PUT",
+      body: JSON.stringify({ apiKey: "sk-secret-wxyz" }),
+    }),
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent("已保存");
+  expect(screen.queryByDisplayValue("sk-secret-wxyz")).not.toBeInTheDocument();
 });

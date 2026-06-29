@@ -7,6 +7,7 @@ const {
   loadFeedback,
   loadGenerationContext,
   generateWithDeepSeek,
+  getDeepSeekRuntimeConfig,
   createFeedbackDraft,
   FakeConflict,
   FakeStorageError,
@@ -18,6 +19,7 @@ const {
     loadFeedback: vi.fn(),
     loadGenerationContext: vi.fn(),
     generateWithDeepSeek: vi.fn(),
+    getDeepSeekRuntimeConfig: vi.fn(),
     createFeedbackDraft: vi.fn(),
     FakeConflict,
     FakeStorageError,
@@ -33,6 +35,9 @@ vi.mock("@/lib/repositories/feedbacks", () => ({
 }));
 vi.mock("@/lib/repositories/generation-context", () => ({
   loadGenerationContext,
+}));
+vi.mock("@/lib/settings/deepseek-config", () => ({
+  getDeepSeekRuntimeConfig,
 }));
 vi.mock("@/lib/deepseek/client", () => ({
   DeepSeekError: class extends Error {},
@@ -137,6 +142,10 @@ beforeEach(() => {
       nextStep: "完成比较表",
     },
   });
+  getDeepSeekRuntimeConfig.mockResolvedValue({
+    apiKey: "personal-key",
+    model: "deepseek-chat",
+  });
   createFeedbackDraft.mockResolvedValue({
     data: {
       id: "123e4567-e89b-42d3-a456-426614174011",
@@ -183,16 +192,28 @@ describe("feedback revision API", () => {
       expect.objectContaining({
         user: expect.stringContaining("上一日已要求比较来源"),
       }),
+      {
+        apiKey: "personal-key",
+        model: "deepseek-chat",
+      },
     );
     expect(generateWithDeepSeek).toHaveBeenCalledWith(
       expect.objectContaining({
         user: expect.stringContaining("先强调证据"),
       }),
+      {
+        apiKey: "personal-key",
+        model: "deepseek-chat",
+      },
     );
     expect(generateWithDeepSeek).toHaveBeenCalledWith(
       expect.objectContaining({
         user: expect.stringContaining("助教刚刚编辑过的当前反馈"),
       }),
+      {
+        apiKey: "personal-key",
+        model: "deepseek-chat",
+      },
     );
     expect(createFeedbackDraft).toHaveBeenCalledWith(
       "owner-123",

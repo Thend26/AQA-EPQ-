@@ -6,6 +6,7 @@ const {
   requireUser,
   loadGenerationContext,
   generateWithDeepSeek,
+  getDeepSeekRuntimeConfig,
   createFeedbackDraft,
   FakeDeepSeekError,
   FakeStorageError,
@@ -28,6 +29,7 @@ const {
     requireUser: vi.fn(),
     loadGenerationContext: vi.fn(),
     generateWithDeepSeek: vi.fn(),
+    getDeepSeekRuntimeConfig: vi.fn(),
     createFeedbackDraft: vi.fn(),
     FakeDeepSeekError,
     FakeStorageError,
@@ -41,6 +43,9 @@ vi.mock("@/lib/repositories/generation-context", () => ({
 vi.mock("@/lib/repositories/feedbacks", () => ({
   createFeedbackDraft,
   RepositoryStorageUnavailableError: FakeStorageError,
+}));
+vi.mock("@/lib/settings/deepseek-config", () => ({
+  getDeepSeekRuntimeConfig,
 }));
 vi.mock("@/lib/deepseek/client", () => ({
   DeepSeekError: FakeDeepSeekError,
@@ -106,6 +111,10 @@ beforeEach(() => {
       evidenceUsed: ["筛选4篇文献"],
       nextStep: "完成来源比较表",
     },
+  });
+  getDeepSeekRuntimeConfig.mockResolvedValue({
+    apiKey: "personal-key",
+    model: "deepseek-chat",
   });
   createFeedbackDraft.mockResolvedValue({
     data: {
@@ -207,6 +216,10 @@ describe("feedback generation API", () => {
         system: expect.stringContaining("不得编造"),
         user: expect.stringContaining("筛选4篇文献"),
       }),
+      {
+        apiKey: "personal-key",
+        model: "deepseek-chat",
+      },
     );
     expect(body.draft.mode).toBe("zh");
     expect(body.issues).toContain("中文：反馈不足50汉字");
@@ -314,6 +327,24 @@ describe("feedback generation API", () => {
     );
 
     expect(response.status).toBe(503);
+    expect(generateWithDeepSeek).not.toHaveBeenCalled();
+  });
+
+  test("returns 409 when the tutor has not configured a personal DeepSeek key", async () => {
+    getDeepSeekRuntimeConfig.mockResolvedValue(null);
+
+    const response = await POST(
+      request({
+        dailyRecordId,
+        languageMode: "zh",
+        instruction: "",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "请先在设置中配置 DeepSeek",
+    });
     expect(generateWithDeepSeek).not.toHaveBeenCalled();
   });
 

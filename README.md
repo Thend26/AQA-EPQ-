@@ -8,7 +8,7 @@
 - Node.js 20.9 或更高版本
 - npm
 - Supabase 项目
-- DeepSeek API Key
+- DeepSeek API Key（每位助教在网页设置中填写）
 
 ```bash
 npm install
@@ -23,13 +23,16 @@ npm run dev
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目 URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 浏览器可用的 publishable key |
 | `SUPABASE_SERVICE_ROLE_KEY` | 仅服务端执行原子反馈 RPC；不得暴露给浏览器 |
-| `DEEPSEEK_API_KEY` | 仅服务端调用 DeepSeek |
-| `DEEPSEEK_MODEL` | 默认 `deepseek-chat` |
+| `SETTINGS_ENCRYPTION_KEY` | 32 字节 base64 密钥，用于加密每位助教的 DeepSeek Key |
+| `DEEPSEEK_TIMEOUT_MS` | 可选，DeepSeek 请求超时，默认 `30000` |
 | `NEXT_PUBLIC_SITE_URL` | 本地为 `http://localhost:3000`，部署后改为正式域名 |
 | `E2E_EMAIL` / `E2E_PASSWORD` | 可选的匿名 E2E 测试账号 |
+| `E2E_DEEPSEEK_API_KEY` | 可选，仅 E2E 测试时写入测试助教账号的个人 Key |
 | `E2E_USE_SYSTEM_CHROME` | 本机已有 Chrome 时可设为 `1`；CI 保持为空并安装 Playwright Chromium |
 
-真实密钥只写入 `.env.local` 或 Vercel 环境变量，不提交到 Git。
+`SETTINGS_ENCRYPTION_KEY` 可用 `openssl rand -base64 32` 生成。DeepSeek API Key
+不再写入 `.env.local` 或 Vercel 环境变量；每位助教登录后在“设置”里填写自己的
+Key，系统只保存加密后的密文和末四位。
 
 ## Supabase 初始化
 
@@ -40,10 +43,13 @@ npm run dev
 3. `supabase/migrations/202606210002_feedback_write_permissions.sql`
 4. `supabase/migrations/202606210003_daily_record_revisions.sql`
 5. `supabase/migrations/202606220001_auth_profiles.sql`
+6. `supabase/migrations/202606230001_camp_day_enforcement.sql`
+7. `supabase/migrations/202606230002_user_settings.sql`
 
-最后一项迁移会为新注册的 Auth 用户自动创建 `profiles` 记录，并回填已经
-存在但缺少资料记录的账号。网站允许助教使用邮箱注册；必须完成邮箱确认后
-再返回登录页登录。
+`202606220001_auth_profiles.sql` 会为新注册的 Auth 用户自动创建 `profiles`
+记录，并回填已经存在但缺少资料记录的账号。`202606230002_user_settings.sql`
+会为现有和新用户创建默认设置记录，用于保存主题和加密后的个人 DeepSeek Key。
+网站允许助教使用邮箱注册；必须完成邮箱确认后再返回登录页登录。
 
 如需测试数据，阅读 `supabase/seed.sql`，把占位用户 UUID 替换为匿名测试
 账号 UUID 后再取消注释。不要使用学生真实姓名、联系方式或其他个人信息。
@@ -97,7 +103,7 @@ E2E_USE_SYSTEM_CHROME=1 npm run test:e2e:smoke
 ```
 
 完整 E2E 会在配置 Supabase URL、publishable key、service role key、
-DeepSeek key、`E2E_EMAIL` 和 `E2E_PASSWORD` 后执行登录、记录、生成、
+配置 `E2E_EMAIL`、`E2E_PASSWORD` 和 `E2E_DEEPSEEK_API_KEY` 后，完整 E2E 会登录测试助教账号、在设置中保存个人 DeepSeek key，再执行记录、生成、
 归档和历史查看；未配置时该用例会明确跳过：
 
 ```bash
@@ -114,7 +120,7 @@ npm run test:e2e
 4. 在 Supabase 添加正式 Site URL 与 callback URL。
 5. 部署后先用非测试邮箱验证注册、邮箱确认、重新登录和创建学生，再用匿名
    测试数据验证每日记录、三种语言、revision 冲突和归档。
-6. 在浏览器开发者工具中确认响应和源码不包含 service role 或 DeepSeek Key。
+6. 在浏览器开发者工具中确认响应和源码不包含 service role 或完整 DeepSeek Key。
 
 ## 隐私说明
 

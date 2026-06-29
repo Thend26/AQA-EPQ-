@@ -7,6 +7,7 @@ import {
   DeepSeekInvalidResponseError,
   generateWithDeepSeek,
   readLimitedBody,
+  testDeepSeekConnection,
 } from "@/lib/deepseek/client";
 
 const originalEnv = { ...process.env };
@@ -25,8 +26,6 @@ const prompts = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  process.env.DEEPSEEK_API_KEY = "secret-test-key";
-  delete process.env.DEEPSEEK_MODEL;
   delete process.env.DEEPSEEK_TIMEOUT_MS;
 });
 
@@ -55,9 +54,12 @@ describe("generateWithDeepSeek", () => {
       ),
     );
 
-    await expect(generateWithDeepSeek(prompts)).resolves.toEqual(
-      validOutput,
-    );
+    await expect(
+      generateWithDeepSeek(prompts, {
+        apiKey: "secret-test-key",
+        model: "deepseek-chat",
+      }),
+    ).resolves.toEqual(validOutput);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.deepseek.com/chat/completions",
       expect.objectContaining({
@@ -93,9 +95,10 @@ describe("generateWithDeepSeek", () => {
       new Response("provider secret details", { status }),
     );
 
-    const error = await generateWithDeepSeek(prompts).catch(
-      (caught: unknown) => caught,
-    );
+    const error = await generateWithDeepSeek(prompts, {
+      apiKey: "secret-test-key",
+      model: "deepseek-chat",
+    }).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(DeepSeekError);
     expect(error).toMatchObject({ code });
@@ -157,7 +160,12 @@ describe("generateWithDeepSeek", () => {
   ])("rejects malformed provider responses", async (response) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
 
-    await expect(generateWithDeepSeek(prompts)).rejects.toMatchObject({
+    await expect(
+      generateWithDeepSeek(prompts, {
+        apiKey: "secret-test-key",
+        model: "deepseek-chat",
+      }),
+    ).rejects.toMatchObject({
       code: "invalid_response",
     });
   });
@@ -175,21 +183,51 @@ describe("generateWithDeepSeek", () => {
     );
 
     const request = expect(
-      generateWithDeepSeek(prompts),
+      generateWithDeepSeek(prompts, {
+        apiKey: "secret-test-key",
+        model: "deepseek-chat",
+        timeoutMs: 25,
+      }),
     ).rejects.toMatchObject({ code: "timeout" });
     await vi.advanceTimersByTimeAsync(25);
 
     await request;
   });
 
-  test("rejects missing server configuration safely", async () => {
-    delete process.env.DEEPSEEK_API_KEY;
+  test("rejects missing personal configuration safely", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
 
-    await expect(generateWithDeepSeek(prompts)).rejects.toMatchObject({
+    await expect(
+      generateWithDeepSeek(prompts, {
+        apiKey: "",
+        model: "deepseek-chat",
+      }),
+    ).rejects.toMatchObject({
       code: "configuration",
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test("tests a provider connection with a minimal prompt", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(
+      testDeepSeekConnection({
+        apiKey: "secret-test-key",
+        model: "deepseek-chat",
+      }),
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.deepseek.com/chat/completions",
+      expect.objectContaining({
+        body: expect.stringContaining("deepseek-chat"),
+      }),
+    );
   });
 });
 

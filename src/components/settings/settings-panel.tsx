@@ -29,6 +29,8 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const [settings, setSettings] = useState<UserSettings>(initialSettings);
   const [error, setError] = useState("");
+  const [keyMessage, setKeyMessage] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [pending, setPending] = useState(false);
   const variables = useMemo(() => {
     try {
@@ -71,6 +73,52 @@ export function SettingsPanel({
     } finally {
       setPending(false);
     }
+  }
+
+  async function saveApiKey() {
+    setError("");
+    setKeyMessage("");
+    if (apiKey.trim().length < 8) {
+      setError("请输入有效的 DeepSeek API Key");
+      return;
+    }
+    const response = await fetch("/api/settings/deepseek-key", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey }),
+    });
+    if (!response.ok) {
+      setError("DeepSeek Key 保存失败，请稍后重试");
+      return;
+    }
+    setApiKey("");
+    setKeyMessage("DeepSeek Key 已保存");
+  }
+
+  async function testApiKey() {
+    setError("");
+    setKeyMessage("");
+    const response = await fetch("/api/settings/deepseek-test", {
+      method: "POST",
+    });
+    if (!response.ok) {
+      setError("DeepSeek 连接测试失败，请检查 Key 和模型");
+      return;
+    }
+    setKeyMessage("DeepSeek 连接测试成功");
+  }
+
+  async function deleteApiKey() {
+    setError("");
+    setKeyMessage("");
+    const response = await fetch("/api/settings/deepseek-key", {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      setError("DeepSeek Key 删除失败，请稍后重试");
+      return;
+    }
+    setKeyMessage("DeepSeek Key 已删除");
   }
 
   return (
@@ -169,6 +217,52 @@ export function SettingsPanel({
               <option value="v4-pro">V4 Pro</option>
             </select>
           </label>
+        </div>
+
+        <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+          <h3 className="font-semibold">个人 DeepSeek API Key</h3>
+          <p className="mt-1 text-sm leading-6 text-stone-600">
+            Key 会加密保存到你的账号设置中；页面不会回显完整 Key。
+          </p>
+          <label className="mt-3 block">
+            DeepSeek API Key
+            <input
+              aria-label="DeepSeek API Key"
+              autoComplete="off"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder="sk-..."
+              type="password"
+            />
+          </label>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="min-h-10 rounded-lg bg-[var(--theme-primary)] px-3 py-2 text-sm font-semibold text-white"
+              onClick={() => void saveApiKey()}
+            >
+              保存 Key
+            </button>
+            <button
+              type="button"
+              className="min-h-10 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm font-semibold text-stone-700"
+              onClick={() => void testApiKey()}
+            >
+              测试连接
+            </button>
+            <button
+              type="button"
+              className="min-h-10 rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700"
+              onClick={() => void deleteApiKey()}
+            >
+              删除 Key
+            </button>
+          </div>
+          {keyMessage ? (
+            <p role="status" className="mt-3 text-sm text-blue-800">
+              {keyMessage}
+            </p>
+          ) : null}
         </div>
 
         <div
