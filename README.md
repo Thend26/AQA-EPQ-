@@ -26,6 +26,10 @@ npm run dev
 | `SETTINGS_ENCRYPTION_KEY` | 32 字节 base64 密钥，用于加密每位助教的 DeepSeek Key |
 | `DEEPSEEK_TIMEOUT_MS` | 可选，DeepSeek 请求超时，默认 `30000` |
 | `NEXT_PUBLIC_SITE_URL` | 本地为 `http://localhost:3000`，部署后改为正式域名 |
+| `SUPABASE_URL` | 仅 document worker 使用；通常与 `NEXT_PUBLIC_SUPABASE_URL` 相同 |
+| `WORKER_ID` | 可选，document worker 实例标识 |
+| `WORKER_POLL_INTERVAL_MS` | 可选，document worker 轮询间隔，默认 `5000` |
+| `OCR_ENABLED` | 可选，是否启用 OCR；未接入 OCR 服务时保持 `false` |
 | `E2E_EMAIL` / `E2E_PASSWORD` | 可选的匿名 E2E 测试账号 |
 | `E2E_DEEPSEEK_API_KEY` | 可选，仅 E2E 测试时写入测试助教账号的个人 Key |
 | `E2E_USE_SYSTEM_CHROME` | 本机已有 Chrome 时可设为 `1`；CI 保持为空并安装 Playwright Chromium |
@@ -45,10 +49,15 @@ Key，系统只保存加密后的密文和末四位。
 5. `supabase/migrations/202606220001_auth_profiles.sql`
 6. `supabase/migrations/202606230001_camp_day_enforcement.sql`
 7. `supabase/migrations/202606230002_user_settings.sql`
+8. `supabase/migrations/202606230003_student_documents.sql`
+9. `supabase/migrations/202606230004_document_worker_rpcs.sql`
 
 `202606220001_auth_profiles.sql` 会为新注册的 Auth 用户自动创建 `profiles`
 记录，并回填已经存在但缺少资料记录的账号。`202606230002_user_settings.sql`
 会为现有和新用户创建默认设置记录，用于保存主题和加密后的个人 DeepSeek Key。
+`202606230003_student_documents.sql` 会创建私有文档 bucket、学生文档表和
+AO 分析草稿表；`202606230004_document_worker_rpcs.sql` 会创建后台 worker
+领取和完成文档解析任务所需的 service-role RPC。
 网站允许助教使用邮箱注册；必须完成邮箱确认后再返回登录页登录。
 
 如需测试数据，阅读 `supabase/seed.sql`，把占位用户 UUID 替换为匿名测试
@@ -67,6 +76,32 @@ Key，系统只保存加密后的密文和末四位。
 - 删除学生前，界面明确提示每日记录、反馈及对话会级联删除。
 
 仓库中的 SQL 测试用于检查迁移结构，不能替代真实 Postgres 集成验证。
+
+## 学生文档解析 Worker
+
+网页端上传学生文档后，会把文件放入私有 `student-documents` bucket，并创建
+一条 `document_jobs` 队列记录。独立 worker 使用 service role key 领取任务、
+下载文件、抽取文本并把结果写回 `student_documents.extracted_text`。
+
+本地快速验证 worker 的解析逻辑：
+
+```bash
+cd worker
+npm test
+```
+
+本地处理一个队列任务：
+
+```bash
+cd worker
+SUPABASE_URL="https://你的项目.supabase.co" \
+SUPABASE_SERVICE_ROLE_KEY="你的 service role key" \
+npm run once
+```
+
+当前 worker 已支持纯文本、文本型 PDF，以及可直接读取 XML 文本的 Office
+OpenXML 内容；图片、扫描件和旧版 Office 文件会给出明确失败原因。若营地需要
+大量扫描件，可在独立容器中接入 OCR/LibreOffice 后把 `OCR_ENABLED=true`。
 
 ## Supabase URL 配置
 
