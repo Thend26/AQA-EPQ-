@@ -123,3 +123,18 @@ test("shows a safe callback error from the query string", () => {
     "邮箱验证链接无效或已过期，请重新注册",
   );
 });
+
+test("renders the professional blue-orange login shell", () => {
+  render(<LoginPage />);
+
+  expect(
+    screen.getByRole("heading", { name: "EPQ Camp Companion" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("唯寻 EPQ 营地助教工作台")).toBeInTheDocument();
+  expect(screen.getByRole("main").firstElementChild).toHaveClass(
+    "lg:grid-cols-[1.05fr_0.95fr]",
+  );
+  expect(screen.getByRole("button", { name: "登录" })).toHaveClass(
+    "bg-orange-500",
+  );
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { FeedbackAssistant } from "@/components/feedback/feedback-assistant";
@@ -8,6 +8,8 @@ import {
   DailyRecordForm,
   type SavedDailyRecord,
 } from "@/components/records/daily-record-form";
+import { SettingsPanel } from "@/components/settings/settings-panel";
+import { ThemeProvider } from "@/components/settings/theme-provider";
 import { StudentForm } from "@/components/students/student-form";
 import { StudentList } from "@/components/students/student-list";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -23,6 +25,8 @@ import type {
 } from "@/lib/domain/types";
 import { clearOwnerDailyRecordDrafts } from "@/lib/domain/draft-storage";
 import { studentSchema } from "@/lib/domain/types";
+import { defaultUserSettings, type UserSettings } from "@/lib/settings/schema";
+import { themeVariables } from "@/lib/settings/theme";
 import {
   requestWorkspaceJson,
   WorkspaceApiError,
@@ -52,6 +56,7 @@ type WorkspaceShellProps = {
   dailyRecord: (DailyRecord & { id?: string }) | null;
   feedback: LoadedFeedback | null;
   feedbackHistory: HistoryItem[];
+  settings?: UserSettings;
   navigate?: (
     href: string,
     options?: { replace?: boolean },
@@ -83,8 +88,11 @@ export function WorkspaceShell({
   dailyRecord,
   feedback,
   feedbackHistory,
+  settings = defaultUserSettings,
   navigate,
 }: WorkspaceShellProps) {
+  const [activeSettings, setActiveSettings] = useState<UserSettings>(settings);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editing, setEditing] = useState<Student | null>(null);
   const [panelOpen, setPanelOpen] = useState(students.length === 0);
   const recordIdentity = `${selectedStudent?.id ?? "none"}:${date}`;
@@ -130,6 +138,7 @@ export function WorkspaceShell({
       feedbackId,
     });
   }, [currentDailyRecordId, feedbackId]);
+  const variables = themeVariables(activeSettings) as CSSProperties;
 
   function selectStudent(id: string) {
     const params = new URLSearchParams({ student: id, date });
@@ -198,11 +207,25 @@ export function WorkspaceShell({
     }
   }
 
+  async function saveSettings(nextSettings: UserSettings) {
+    const response = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nextSettings),
+    });
+    if (!response.ok) throw new Error("Failed to update settings");
+    setActiveSettings(nextSettings);
+  }
+
   return (
-    <div className="min-h-screen overflow-x-hidden bg-stone-100 text-emerald-950">
-      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 bg-emerald-950 px-4 py-3 text-white sm:px-6">
+    <ThemeProvider settings={activeSettings}>
+    <div
+      className="min-h-screen overflow-x-hidden bg-[var(--theme-surface)] text-[var(--theme-text)]"
+      style={variables}
+    >
+      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 bg-[var(--theme-primary)] px-4 py-3 text-white sm:px-6">
         <div className="min-w-0 flex-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-emerald-200">
+          <p className="text-xs uppercase tracking-[0.2em] text-blue-100">
             EPQ Camp Companion
           </p>
           <p className="break-words font-medium">
@@ -211,10 +234,17 @@ export function WorkspaceShell({
         </div>
         <button
           type="button"
+          onClick={() => setSettingsOpen(true)}
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-white/30 px-3 py-2 text-sm hover:bg-white/10"
+        >
+          设置
+        </button>
+        <button
+          type="button"
           onClick={() => void logout()}
           disabled={logoutPending}
           aria-busy={logoutPending}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-emerald-700 px-3 py-2 text-sm hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-80"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-white/30 px-3 py-2 text-sm hover:bg-white/10 disabled:cursor-wait disabled:opacity-80"
         >
           {logoutPending ? (
             <>
@@ -236,10 +266,22 @@ export function WorkspaceShell({
         <div
           role="status"
           aria-label="页面载入状态"
-          className="fixed right-4 top-20 z-50 inline-flex items-center gap-2 rounded-full bg-emerald-950 px-4 py-2 text-sm text-white shadow-lg"
+          className="fixed right-4 top-20 z-50 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white shadow-lg"
         >
           <LoadingSpinner size="sm" />
           <span>正在载入…</span>
+        </div>
+      ) : null}
+
+      {settingsOpen ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 p-4">
+          <div className="mx-auto max-w-2xl">
+            <SettingsPanel
+              initialSettings={activeSettings}
+              onClose={() => setSettingsOpen(false)}
+              onSave={saveSettings}
+            />
+          </div>
         </div>
       ) : null}
 
@@ -274,16 +316,16 @@ export function WorkspaceShell({
         <main className="min-w-0 space-y-5 p-4 sm:p-6">
           {selectedStudent ? (
             <>
-              <section className="rounded-2xl bg-emerald-900 p-5 text-white shadow-sm">
+              <section className="rounded-2xl bg-[var(--theme-primary)] p-5 text-white shadow-sm">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <p className="text-sm text-emerald-200">
+                    <p className="text-sm text-blue-100">
                       {selectedStudent.grade} 年级 · {date}
                     </p>
                     <h1 className="mt-1 text-2xl font-semibold">
                       {selectedStudent.displayName}
                     </h1>
-                    <p className="mt-2 break-words text-emerald-50">
+                    <p className="mt-2 break-words text-blue-50">
                       {selectedStudent.projectTitle}
                     </p>
                   </div>
@@ -294,7 +336,7 @@ export function WorkspaceShell({
                     <button
                       type="button"
                       aria-label="上一天"
-                      className="min-h-11 rounded-lg border border-emerald-700 px-2 py-2 hover:bg-emerald-800"
+                      className="min-h-11 rounded-lg border border-white/30 px-2 py-2 hover:bg-white/10"
                       onClick={() => selectDate(shiftDate(date, -1))}
                     >
                       ‹
@@ -307,20 +349,20 @@ export function WorkspaceShell({
                       aria-label="查看日期"
                       type="date"
                       value={date}
-                      className="m-0 min-w-0 border-emerald-700 bg-emerald-950 text-white"
+                      className="m-0 min-w-0 border-white/30 bg-white/10 text-white"
                       onChange={(event) => selectDate(event.target.value)}
                     />
                     <button
                       type="button"
                       aria-label="下一天"
-                      className="min-h-11 rounded-lg border border-emerald-700 px-2 py-2 hover:bg-emerald-800"
+                      className="min-h-11 rounded-lg border border-white/30 px-2 py-2 hover:bg-white/10"
                       onClick={() => selectDate(shiftDate(date, 1))}
                     >
                       ›
                     </button>
                     <button
                       type="button"
-                      className="col-span-3 min-h-11 rounded-lg border border-emerald-700 px-3 py-2 text-sm hover:bg-emerald-800"
+                      className="col-span-3 min-h-11 rounded-lg border border-white/30 px-3 py-2 text-sm hover:bg-white/10"
                       onClick={() => selectDate()}
                     >
                       回到今天
@@ -328,7 +370,7 @@ export function WorkspaceShell({
                   </div>
                 </div>
                 {selectedStudent.currentFocus ? (
-                  <p className="mt-3 text-sm text-emerald-100">
+                  <p className="mt-3 text-sm text-blue-100">
                     当前关注：{selectedStudent.currentFocus}
                   </p>
                 ) : null}
@@ -393,7 +435,7 @@ export function WorkspaceShell({
             ) : (
               <button
                 type="button"
-                className="text-sm font-medium text-emerald-800"
+                className="text-sm font-medium text-[var(--theme-primary)]"
                 onClick={() => setPanelOpen(true)}
               >
                 打开学生档案编辑面板
@@ -485,5 +527,6 @@ export function WorkspaceShell({
         </aside>
       </div>
     </div>
+    </ThemeProvider>
   );
 }

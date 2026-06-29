@@ -45,16 +45,39 @@ function LoginPageContent() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-stone-100 px-4 py-8 sm:px-6">
-      <section className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-sm sm:p-8">
-        <h1 className="text-2xl font-semibold text-emerald-950">登录</h1>
-        <p className="mt-2 text-sm leading-6 text-stone-600">
-          登录已有导师账号，或使用邮箱创建新的 EPQ Camp Companion
-          工作空间。
-        </p>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#dbeafe,transparent_35%),#f8fafc] px-4 py-8 sm:px-6">
+      <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl shadow-blue-950/10 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative flex min-h-72 flex-col justify-between bg-[#123c69] p-8 text-white sm:p-10">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-orange-200">
+              唯寻 EPQ 营地助教工作台
+            </p>
+            <h1 className="mt-5 text-4xl font-semibold tracking-tight">
+              EPQ Camp Companion
+            </h1>
+            <p className="mt-4 max-w-md text-base leading-7 text-blue-100">
+              把每天的学生成果、过程证据和 AO 观察沉淀成连续反馈，让营地工作更稳、更清楚。
+            </p>
+          </div>
+          <div className="mt-8 grid gap-3 text-sm text-blue-50">
+            <p className="rounded-2xl bg-white/10 p-4">
+              蓝橙专业配色 · 适合投屏和现场快速操作
+            </p>
+            <p className="rounded-2xl bg-white/10 p-4">
+              邮箱验证后登录 · 每位助教独立管理学生档案
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center p-6 sm:p-10">
+          <div className="w-full">
+            <h2 className="text-2xl font-semibold text-slate-950">登录</h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              登录已有导师账号，或使用邮箱创建新的 EPQ Camp Companion
+              工作空间。
+            </p>
         {verified ? (
           <p
-            className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800"
+            className="mt-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-800"
             role="status"
           >
             邮箱验证成功，请登录。
@@ -70,6 +93,8 @@ function LoginPageContent() {
         ) : null}
         <div className="mt-6">
           <LoginForm signIn={signIn} signUp={signUp} />
+        </div>
+          </div>
         </div>
       </section>
     </main>

@@ -100,7 +100,7 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
           aria-pressed={mode === "login"}
           className={`min-h-11 rounded-lg px-3 py-2 text-sm font-semibold ${
             mode === "login"
-              ? "bg-white text-emerald-900 shadow-sm"
+              ? "bg-white text-blue-900 shadow-sm"
               : "text-stone-600"
           }`}
           disabled={pending}
@@ -113,7 +113,7 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
           aria-pressed={mode === "register"}
           className={`min-h-11 rounded-lg px-3 py-2 text-sm font-semibold ${
             mode === "register"
-              ? "bg-white text-emerald-900 shadow-sm"
+              ? "bg-white text-blue-900 shadow-sm"
               : "text-stone-600"
           }`}
           disabled={pending}
@@ -160,7 +160,7 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
         ) : null}
         {success ? (
           <p
-            className="rounded-lg bg-emerald-50 p-3 text-sm leading-6 text-emerald-800"
+            className="rounded-lg bg-blue-50 p-3 text-sm leading-6 text-blue-800"
             role="status"
           >
             {success}
@@ -168,7 +168,7 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
         ) : null}
         <button
           aria-busy={pending}
-          className="min-h-11 w-full rounded-xl bg-emerald-800 px-4 py-2.5 font-semibold text-white hover:bg-emerald-900"
+          className="min-h-11 w-full rounded-xl bg-orange-500 px-4 py-2.5 font-semibold text-white hover:bg-orange-600"
           disabled={pending}
           type="submit"
         >

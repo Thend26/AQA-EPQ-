@@ -4,6 +4,7 @@ import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 import { defaultWorkspaceDate } from "@/lib/camp/date";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
 import { getDailyRecord } from "@/lib/repositories/daily-records";
+import { getUserSettings } from "@/lib/repositories/settings";
 import { listStudents } from "@/lib/repositories/students";
 import { loadWorkspaceFeedbacks } from "@/lib/repositories/workspace-feedbacks";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,10 @@ export default async function WorkspacePage({
   }
 
   const students = studentsResult.data ?? [];
+  const settingsResult = await getUserSettings(db, user.id);
+  if (settingsResult.error) {
+    throw new Error("Unable to load settings");
+  }
   const requestedStudent =
     typeof query.student === "string" ? query.student : undefined;
   const selectedStudent =
@@ -111,6 +116,7 @@ export default async function WorkspacePage({
       dailyRecord={dailyRecord}
       feedback={feedback}
       feedbackHistory={feedbackHistory}
+      settings={settingsResult.data ?? undefined}
     />
   );
 }
