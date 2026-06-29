@@ -24,6 +24,10 @@ function safeServerDate() {
   return dateInTimeZone(new Date());
 }
 
+function logWorkspaceLoadError(scope: string, error: unknown) {
+  console.error("[workspace-load]", scope, error);
+}
+
 export default async function WorkspacePage({
   searchParams,
 }: WorkspacePageProps) {
@@ -43,13 +47,13 @@ export default async function WorkspacePage({
     listStudents(db, user.id),
   ]);
   if (studentsResult.error) {
-    throw new Error("Unable to load students");
+    logWorkspaceLoadError("students", studentsResult.error);
   }
 
-  const students = studentsResult.data ?? [];
+  const students = studentsResult.error ? [] : studentsResult.data ?? [];
   const settingsResult = await getUserSettings(db, user.id);
   if (settingsResult.error) {
-    throw new Error("Unable to load settings");
+    logWorkspaceLoadError("settings", settingsResult.error);
   }
   const requestedStudent =
     typeof query.student === "string" ? query.student : undefined;
@@ -83,8 +87,11 @@ export default async function WorkspacePage({
       selectedStudent.id,
       date,
     );
-    if (recordResult.error) throw new Error("Unable to load daily record");
-    dailyRecord = recordResult.data;
+    if (recordResult.error) {
+      logWorkspaceLoadError("daily-record", recordResult.error);
+    } else {
+      dailyRecord = recordResult.data;
+    }
 
     if (dailyRecord?.id) {
       const loadedFeedback = await loadWorkspaceFeedbacks(
@@ -93,10 +100,11 @@ export default async function WorkspacePage({
         dailyRecord.id,
       );
       if (loadedFeedback.error) {
-        throw new Error("Unable to load feedback history");
+        logWorkspaceLoadError("feedback-history", loadedFeedback.error);
+      } else {
+        feedback = loadedFeedback.feedback;
+        feedbackHistory = loadedFeedback.history;
       }
-      feedback = loadedFeedback.feedback;
-      feedbackHistory = loadedFeedback.history;
     }
   }
 
