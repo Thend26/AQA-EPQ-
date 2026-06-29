@@ -20,6 +20,10 @@ describe("deployment artifacts", () => {
       "E2E_EMAIL",
       "E2E_PASSWORD",
       "E2E_DEEPSEEK_API_KEY",
+      "SUPABASE_URL",
+      "WORKER_ID",
+      "WORKER_POLL_INTERVAL_MS",
+      "OCR_ENABLED",
     ]) {
       expect(env).toContain(`${name}=`);
     }
@@ -34,7 +38,11 @@ describe("deployment artifacts", () => {
     expect(readme).toContain("202606220001_auth_profiles.sql");
     expect(readme).toContain("202606230001_camp_day_enforcement.sql");
     expect(readme).toContain("202606230002_user_settings.sql");
+    expect(readme).toContain("202606230003_student_documents.sql");
+    expect(readme).toContain("202606230004_document_worker_rpcs.sql");
+    expect(readme).toContain("202606230005_ao_analysis_metadata.sql");
     expect(readme).toContain("npm run test:e2e:smoke");
+    expect(readme).toContain("学生文档解析 Worker");
     expect(readme).toContain("Vercel");
     expect(readme).toContain("Row Level Security");
     expect(readme).toContain("匿名");
@@ -49,5 +57,18 @@ describe("deployment artifacts", () => {
     expect(read("supabase/seed.sql")).not.toMatch(
       /(?:手机号|身份证|真实姓名|家庭住址)/,
     );
+  });
+
+  it("keeps DeepSeek secrets server scoped and exposes AO analysis as a server route", () => {
+    expect(read("src/app/api/ao-analysis/route.ts")).toContain(
+      "getDeepSeekRuntimeConfig",
+    );
+    expect(read("src/components/documents/document-panel.tsx")).not.toContain(
+      "E2E_DEEPSEEK_API_KEY",
+    );
+    expect(read("src/components/documents/document-panel.tsx")).not.toContain(
+      "DEEPSEEK_API_KEY",
+    );
+    expect(read("worker/Dockerfile")).toContain("node:24-slim");
   });
 });
