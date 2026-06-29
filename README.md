@@ -51,13 +51,15 @@ Key，系统只保存加密后的密文和末四位。
 7. `supabase/migrations/202606230002_user_settings.sql`
 8. `supabase/migrations/202606230003_student_documents.sql`
 9. `supabase/migrations/202606230004_document_worker_rpcs.sql`
+10. `supabase/migrations/202606230005_ao_analysis_metadata.sql`
 
 `202606220001_auth_profiles.sql` 会为新注册的 Auth 用户自动创建 `profiles`
 记录，并回填已经存在但缺少资料记录的账号。`202606230002_user_settings.sql`
 会为现有和新用户创建默认设置记录，用于保存主题和加密后的个人 DeepSeek Key。
 `202606230003_student_documents.sql` 会创建私有文档 bucket、学生文档表和
 AO 分析草稿表；`202606230004_document_worker_rpcs.sql` 会创建后台 worker
-领取和完成文档解析任务所需的 service-role RPC。
+领取和完成文档解析任务所需的 service-role RPC；`202606230005_ao_analysis_metadata.sql`
+会给 AO 分析记录补充模型与输入指纹字段，便于审计和去重。
 网站允许助教使用邮箱注册；必须完成邮箱确认后再返回登录页登录。
 
 如需测试数据，阅读 `supabase/seed.sql`，把占位用户 UUID 替换为匿名测试

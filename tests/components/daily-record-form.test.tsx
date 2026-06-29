@@ -121,6 +121,38 @@ test("writes edits to the scoped local draft immediately", () => {
   });
 });
 
+test("applies external AO suggestions into the draft", () => {
+  const { rerender } = render(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      campStartDate={campStartDate}
+      save={async () => {}}
+    />,
+  );
+
+  rerender(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      campStartDate={campStartDate}
+      save={async () => {}}
+      externalAoPatch={{
+        id: "analysis-1",
+        values: { ao1Note: "AI 生成的 AO1", ao3Note: "AI 生成的 AO3" },
+      }}
+    />,
+  );
+
+  expect(screen.getByLabelText("AO1 Manage 当日观察")).toHaveValue("AI 生成的 AO1");
+  expect(screen.getByLabelText("AO3 Develop and realise 当日观察")).toHaveValue("AI 生成的 AO3");
+  expect(localStorage.getItem(draftKey(ownerId, studentId, date))).toContain(
+    "AI 生成的 AO1",
+  );
+});
+
 test("debounces a valid cloud save by 800ms and reports success", async () => {
   vi.useFakeTimers();
   const save = vi.fn().mockResolvedValue(undefined);

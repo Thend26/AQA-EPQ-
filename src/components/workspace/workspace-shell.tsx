@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { FeedbackAssistant } from "@/components/feedback/feedback-assistant";
 import { DocumentPanel } from "@/components/documents/document-panel";
+import type { AoNotePatch } from "@/components/documents/ao-analysis-review";
 import {
   DailyRecordForm,
   type SavedDailyRecord,
@@ -107,6 +108,11 @@ export function WorkspaceShell({
     identity: string;
     record: DailyRecordObservationDraft;
   } | null>(null);
+  const [externalAoPatch, setExternalAoPatch] = useState<{
+    identity: string;
+    id: string;
+    values: AoNotePatch;
+  } | null>(null);
   const [logoutError, setLogoutError] = useState("");
   const [logoutPending, setLogoutPending] = useState(false);
   const [navigationPending, setNavigationPending] = useState(false);
@@ -133,6 +139,12 @@ export function WorkspaceShell({
         (savedRecord?.identity === recordIdentity ? savedRecord.id : undefined);
   const liveRecord =
     liveDraft?.identity === recordIdentity ? liveDraft.record : dailyRecord;
+  const existingAoNotes = {
+    ao1Note: liveRecord?.ao1Note ?? "",
+    ao2Note: liveRecord?.ao2Note ?? "",
+    ao3Note: liveRecord?.ao3Note ?? "",
+    ao4Note: liveRecord?.ao4Note ?? "",
+  };
   const feedbackId = feedback?.id;
   const adapters = useMemo(() => {
     if (!currentDailyRecordId) return null;
@@ -398,12 +410,29 @@ export function WorkspaceShell({
                   onDraftChange={(record) =>
                     setLiveDraft({ identity: recordIdentity, record })
                   }
+                  externalAoPatch={
+                    externalAoPatch?.identity === recordIdentity
+                      ? {
+                          id: externalAoPatch.id,
+                          values: externalAoPatch.values,
+                        }
+                      : null
+                  }
                 />
               </section>
               {documentsEnabled ? (
                 <DocumentPanel
                   studentId={selectedStudent.id!}
                   campDay={selectedCampDay}
+                  recordDate={date}
+                  existingAoNotes={existingAoNotes}
+                  onApplyAoSuggestions={(values) =>
+                    setExternalAoPatch({
+                      identity: recordIdentity,
+                      id: `${recordIdentity}:${Date.now()}`,
+                      values,
+                    })
+                  }
                 />
               ) : null}
             </>

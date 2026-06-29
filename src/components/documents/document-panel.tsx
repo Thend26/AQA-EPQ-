@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  AoAnalysisReview,
+  type AoNotePatch,
+} from "@/components/documents/ao-analysis-review";
 import { MAX_DOCUMENT_BYTES, validateDocumentMetadata } from "@/lib/documents/file-validation";
+import { aoAnalysisResponseSchema, type AoAnalysisResponse } from "@/lib/documents/ao-schema";
 import { createClient } from "@/lib/supabase/client";
 import { requestWorkspaceJson } from "@/lib/workspace/api";
 import { z } from "zod";
@@ -18,21 +23,33 @@ const createSchema = z.object({
   storagePath: z.string(),
 });
 const downloadSchema = z.object({ url: z.string().url() });
+const aoAnalysisSchema = z.object({ data: aoAnalysisResponseSchema });
 
 type DocumentItem = z.output<typeof documentSchema>;
 
 export function DocumentPanel({
   studentId,
   campDay,
+  recordDate,
+  existingAoNotes = {},
+  onApplyAoSuggestions,
 }: {
   studentId: string;
   campDay: number | null;
+  recordDate?: string;
+  existingAoNotes?: AoNotePatch;
+  onApplyAoSuggestions?: (patch: AoNotePatch) => void;
 }) {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [analysisPending, setAnalysisPending] = useState(false);
+  const [analysis, setAnalysis] = useState<AoAnalysisResponse | null>(null);
   const locked = campDay === null;
+  const hasExtractedDocument = documents.some(
+    (document) => document.status === "extracted",
+  );
 
   async function load() {
     const result = await requestWorkspaceJson(
@@ -126,6 +143,30 @@ export function DocumentPanel({
     window.open(result.url, "_blank", "noopener,noreferrer");
   }
 
+  async function generateAoAnalysis() {
+    if (!recordDate || locked || analysisPending || !hasExtractedDocument) return;
+    setMessage("");
+    setAnalysisPending(true);
+    try {
+      const result = await requestWorkspaceJson(
+        fetch,
+        "/api/ao-analysis",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentId, recordDate }),
+        },
+        aoAnalysisSchema,
+      );
+      setAnalysis(result.data);
+      setMessage("AO 观察建议已生成，请检查后采用");
+    } catch {
+      setMessage("AO 观察建议生成失败，请确认文档已解析且 DeepSeek 已配置");
+    } finally {
+      setAnalysisPending(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold">学生文档</h2>
@@ -168,6 +209,29 @@ export function DocumentPanel({
           </li>
         ))}
       </ul>
+      <div className="mt-4 rounded-xl bg-stone-50 p-3">
+        <p className="text-sm text-stone-600">
+          文档状态为 extracted 后，可让 DeepSeek 生成 AO1–AO4 当日观察草稿。
+        </p>
+        <button
+          type="button"
+          disabled={!recordDate || locked || !hasExtractedDocument || analysisPending}
+          className="mt-3 rounded-xl bg-blue-700 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => void generateAoAnalysis()}
+        >
+          {analysisPending ? "生成中…" : "生成 AO 观察建议"}
+        </button>
+      </div>
+      {analysis ? (
+        <AoAnalysisReview
+          analysis={analysis}
+          existingNotes={existingAoNotes}
+          onApply={(patch) => {
+            onApplyAoSuggestions?.(patch);
+            setMessage("已应用选中的 AO 观察建议");
+          }}
+        />
+      ) : null}
     </section>
   );
 }

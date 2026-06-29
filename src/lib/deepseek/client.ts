@@ -126,10 +126,10 @@ export async function readLimitedBody(
   }
 }
 
-export async function generateWithDeepSeek(
+async function requestDeepSeekJson(
   prompts: FeedbackPrompts,
   options: DeepSeekRequestOptions,
-): Promise<GeneratedFeedback> {
+) {
   const config = loadConfig(options);
   const controller = new AbortController();
   const timeout = setTimeout(
@@ -192,11 +192,7 @@ export async function generateWithDeepSeek(
       throw invalidResponse();
     }
 
-    const parsedFeedback = generatedFeedbackSchema.safeParse(generated);
-    if (!parsedFeedback.success) {
-      throw invalidResponse();
-    }
-    return parsedFeedback.data;
+    return generated;
   } catch (error) {
     if (error instanceof DeepSeekError) throw error;
     if (
@@ -209,6 +205,30 @@ export async function generateWithDeepSeek(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function generateStructuredWithDeepSeek<T>(
+  prompts: FeedbackPrompts,
+  options: DeepSeekRequestOptions,
+  schema: z.ZodType<T>,
+): Promise<T> {
+  const generated = await requestDeepSeekJson(prompts, options);
+  const parsed = schema.safeParse(generated);
+  if (!parsed.success) {
+    throw invalidResponse();
+  }
+  return parsed.data;
+}
+
+export async function generateWithDeepSeek(
+  prompts: FeedbackPrompts,
+  options: DeepSeekRequestOptions,
+): Promise<GeneratedFeedback> {
+  return generateStructuredWithDeepSeek(
+    prompts,
+    options,
+    generatedFeedbackSchema,
+  );
 }
 
 export async function testDeepSeekConnection(options: DeepSeekRequestOptions) {

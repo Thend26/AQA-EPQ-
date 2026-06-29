@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AoObservations } from "@/components/records/ao-observations";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -31,6 +31,13 @@ type DailyRecordFormProps = {
     snapshot: DailyRecord,
   ) => void;
   onDraftChange?: (draft: DailyRecordObservationDraft) => void;
+  externalAoPatch?: {
+    id: string;
+    values: Partial<Pick<
+      DailyRecordDraftValues,
+      "ao1Note" | "ao2Note" | "ao3Note" | "ao4Note"
+    >>;
+  } | null;
 };
 
 export type SavedDailyRecord = DailyRecord & { id: string; revision?: number };
@@ -108,6 +115,7 @@ function DailyRecordFormFields({
   save,
   onSaved,
   onDraftChange,
+  externalAoPatch,
 }: DailyRecordFormProps) {
   const key = useMemo(
     () => draftKey(ownerId, studentId, date),
@@ -142,6 +150,7 @@ function DailyRecordFormFields({
     (initialValue as (DailyRecord & { revision?: number }) | null | undefined)
       ?.revision ?? null,
   );
+  const appliedExternalAoPatchRef = useRef<string | null>(null);
 
   function replaceValues(next: DailyRecordDraftValues) {
     if (isLocked) return;
@@ -166,6 +175,18 @@ function DailyRecordFormFields({
   ) {
     replaceValues({ ...values, [field]: value });
   }
+
+  useEffect(() => {
+    if (
+      !externalAoPatch ||
+      appliedExternalAoPatchRef.current === externalAoPatch.id
+    ) {
+      return;
+    }
+    appliedExternalAoPatchRef.current = externalAoPatch.id;
+    replaceValues({ ...values, ...externalAoPatch.values });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalAoPatch]);
 
   function toggleBehaviorTag(tag: string, checked: boolean) {
     const behaviorTags = checked
