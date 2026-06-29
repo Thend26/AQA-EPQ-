@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, test, vi } from "vitest";
 
 import {
+  DailyRecordBeforeCampError,
+  DailyRecordCampDayOutOfRangeError,
   DailyRecordConflictError,
   dailyRecordUpsert,
   getDailyRecord,
@@ -135,6 +137,12 @@ describe("owner-scoped daily record queries", () => {
 
     expect(rpc).toHaveBeenCalledWith(
       "save_daily_record",
+      expect.not.objectContaining({
+        p_camp_day: expect.anything(),
+      }),
+    );
+    expect(rpc).toHaveBeenCalledWith(
+      "save_daily_record",
       expect.objectContaining({
         p_owner_id: "owner-123",
         p_student_id: input.studentId,
@@ -158,5 +166,44 @@ describe("owner-scoped daily record queries", () => {
     );
 
     expect(result.error).toBeInstanceOf(DailyRecordConflictError);
+  });
+
+  test("maps the database pre-camp error to a typed error", async () => {
+    createAdminClient.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: { code: "PDR01", message: "record date before camp start" },
+      }),
+    });
+
+    const result = await upsertDailyRecord(
+      ownedStudentDb(),
+      "owner-123",
+      { ...input, recordDate: "2026-07-15", campDay: 99 },
+      null,
+    );
+
+    expect(result.error).toBeInstanceOf(DailyRecordBeforeCampError);
+  });
+
+  test("maps the database out-of-range error to a typed error", async () => {
+    createAdminClient.mockReturnValue({
+      rpc: vi.fn().mockResolvedValue({
+        data: null,
+        error: {
+          code: "PDR02",
+          message: "record date outside supported camp range",
+        },
+      }),
+    });
+
+    const result = await upsertDailyRecord(
+      ownedStudentDb(),
+      "owner-123",
+      { ...input, recordDate: "2026-10-30", campDay: 99 },
+      null,
+    );
+
+    expect(result.error).toBeInstanceOf(DailyRecordCampDayOutOfRangeError);
   });
 });

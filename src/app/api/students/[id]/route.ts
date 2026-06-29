@@ -6,6 +6,7 @@ import { apiError, validationError } from "@/lib/api/responses";
 import { studentUpdateSchema } from "@/lib/domain/types";
 import {
   deleteStudent,
+  StudentCampDateConflictError,
   updateStudent,
 } from "@/lib/repositories/students";
 const studentIdSchema = z.string().uuid();
@@ -44,6 +45,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       id.data,
       parsed.data,
     );
+    if (error instanceof StudentCampDateConflictError) {
+      return apiError(
+        "Camp start date conflicts with existing records or documents",
+        409,
+      );
+    }
     if (error) {
       return apiError("Failed to update student", 500);
     }

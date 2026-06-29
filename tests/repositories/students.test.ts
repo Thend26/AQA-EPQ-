@@ -5,6 +5,7 @@ import {
   createStudent,
   deleteStudent,
   listStudents,
+  StudentCampDateConflictError,
   studentInsert,
   studentUpdate,
   updateStudent,
@@ -87,6 +88,26 @@ describe("owner-scoped student queries", () => {
     });
     expect(firstEq).toHaveBeenCalledWith("id", "student-123");
     expect(secondEq).toHaveBeenCalledWith("owner_id", "owner-123");
+  });
+
+  test("update maps camp start date conflicts to a typed error", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "PSC01", message: "conflicting records" },
+    });
+    const select = vi.fn(() => ({ maybeSingle }));
+    const secondEq = vi.fn(() => ({ select }));
+    const firstEq = vi.fn(() => ({ eq: secondEq }));
+    const update = vi.fn(() => ({ eq: firstEq }));
+    const db = {
+      from: vi.fn(() => ({ update })),
+    } as unknown as SupabaseClient;
+
+    const result = await updateStudent(db, "owner-123", "student-123", {
+      campStartDate: "2026-07-20",
+    });
+
+    expect(result.error).toBeInstanceOf(StudentCampDateConflictError);
   });
 
   test("delete filters by both student and owner id", async () => {

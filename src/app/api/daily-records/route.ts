@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/api/auth";
 import { apiError, validationError } from "@/lib/api/responses";
 import { dailyRecordSchema } from "@/lib/domain/types";
 import {
+  DailyRecordBeforeCampError,
+  DailyRecordCampDayOutOfRangeError,
   DailyRecordConflictError,
   getDailyRecord,
   upsertDailyRecord,
@@ -81,6 +83,15 @@ export async function PUT(request: Request) {
     );
     if (error instanceof DailyRecordConflictError) {
       return apiError("Daily record changed; refresh before saving", 409);
+    }
+    if (error instanceof DailyRecordBeforeCampError) {
+      return apiError(
+        "Record date is before the student's camp start date",
+        422,
+      );
+    }
+    if (error instanceof DailyRecordCampDayOutOfRangeError) {
+      return apiError("Record date is outside the supported camp range", 422);
     }
     if (error) {
       return apiError("Failed to save daily record", 500);

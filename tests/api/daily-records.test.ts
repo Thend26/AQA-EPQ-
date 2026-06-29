@@ -5,13 +5,19 @@ const {
   getDailyRecord,
   upsertDailyRecord,
   FakeDailyRecordConflict,
+  FakeDailyRecordBeforeCamp,
+  FakeDailyRecordCampDayOutOfRange,
 } = vi.hoisted(() => {
   class FakeDailyRecordConflict extends Error {}
+  class FakeDailyRecordBeforeCamp extends Error {}
+  class FakeDailyRecordCampDayOutOfRange extends Error {}
   return {
     getUser: vi.fn(),
     getDailyRecord: vi.fn(),
     upsertDailyRecord: vi.fn(),
     FakeDailyRecordConflict,
+    FakeDailyRecordBeforeCamp,
+    FakeDailyRecordCampDayOutOfRange,
   };
 });
 
@@ -23,6 +29,8 @@ vi.mock("@/lib/repositories/daily-records", () => ({
   getDailyRecord,
   upsertDailyRecord,
   DailyRecordConflictError: FakeDailyRecordConflict,
+  DailyRecordBeforeCampError: FakeDailyRecordBeforeCamp,
+  DailyRecordCampDayOutOfRangeError: FakeDailyRecordCampDayOutOfRange,
 }));
 
 import { GET, PUT } from "@/app/api/daily-records/route";
@@ -191,7 +199,30 @@ describe("daily record API", () => {
     expect(upsertDailyRecord).toHaveBeenCalledWith(
       expect.anything(),
       "authenticated-owner",
-      expect.objectContaining({ studentId }),
+      expect.objectContaining({ studentId, campDay: 3 }),
+      null,
+    );
+  });
+
+  test("accepts a legacy client camp day but leaves persistence to recompute it", async () => {
+    upsertDailyRecord.mockResolvedValue({
+      data: { ...validInput, campDay: 3, id: "record-1", revision: 0 },
+      error: null,
+      notFound: false,
+    });
+
+    const response = await PUT(
+      new Request("https://app.example/api/daily-records", {
+        method: "PUT",
+        body: JSON.stringify({ ...validInput, campDay: 99 }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(upsertDailyRecord).toHaveBeenCalledWith(
+      expect.anything(),
+      "authenticated-owner",
+      expect.objectContaining({ studentId, campDay: 99 }),
       null,
     );
   });
@@ -213,6 +244,46 @@ describe("daily record API", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
       error: "Daily record changed; refresh before saving",
+    });
+  });
+
+  test("maps pre-camp writes to 422", async () => {
+    upsertDailyRecord.mockResolvedValue({
+      data: null,
+      error: new FakeDailyRecordBeforeCamp("pre-camp"),
+      notFound: false,
+    });
+
+    const response = await PUT(
+      new Request("https://app.example/api/daily-records", {
+        method: "PUT",
+        body: JSON.stringify({ ...validInput, recordDate: "2026-07-15" }),
+      }),
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: "Record date is before the student's camp start date",
+    });
+  });
+
+  test("maps out-of-range camp days to 422", async () => {
+    upsertDailyRecord.mockResolvedValue({
+      data: null,
+      error: new FakeDailyRecordCampDayOutOfRange("out of range"),
+      notFound: false,
+    });
+
+    const response = await PUT(
+      new Request("https://app.example/api/daily-records", {
+        method: "PUT",
+        body: JSON.stringify({ ...validInput, recordDate: "2026-10-30" }),
+      }),
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      error: "Record date is outside the supported camp range",
     });
   });
 

@@ -47,6 +47,24 @@ export class DailyRecordConflictError extends Error {
   }
 }
 
+export class DailyRecordBeforeCampError extends Error {
+  readonly code = "daily_record_before_camp";
+
+  constructor() {
+    super("Record date is before the student's camp start date");
+    this.name = "DailyRecordBeforeCampError";
+  }
+}
+
+export class DailyRecordCampDayOutOfRangeError extends Error {
+  readonly code = "daily_record_camp_day_out_of_range";
+
+  constructor() {
+    super("Record date is outside the supported camp range");
+    this.name = "DailyRecordCampDayOutOfRangeError";
+  }
+}
+
 export class DailyRecordStorageUnavailableError extends Error {
   readonly code = "daily_record_storage_unavailable";
 
@@ -169,7 +187,6 @@ export async function upsertDailyRecord(
       p_owner_id: ownerId,
       p_student_id: input.studentId,
       p_record_date: input.recordDate,
-      p_camp_day: input.campDay,
       p_achievements: input.achievements,
       p_evidence: input.evidence ?? "",
       p_challenges: input.challenges ?? "",
@@ -190,6 +207,20 @@ export async function upsertDailyRecord(
     };
   }
   if (result.error) {
+    if (result.error.code === "PDR01") {
+      return {
+        data: null,
+        error: new DailyRecordBeforeCampError(),
+        notFound: false,
+      };
+    }
+    if (result.error.code === "PDR02") {
+      return {
+        data: null,
+        error: new DailyRecordCampDayOutOfRangeError(),
+        notFound: false,
+      };
+    }
     return {
       data: null,
       error: new DailyRecordStorageUnavailableError(),

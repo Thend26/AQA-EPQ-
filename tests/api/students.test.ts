@@ -6,13 +6,18 @@ const {
   createStudent,
   updateStudent,
   deleteStudent,
-} = vi.hoisted(() => ({
-  getUser: vi.fn(),
-  listStudents: vi.fn(),
-  createStudent: vi.fn(),
-  updateStudent: vi.fn(),
-  deleteStudent: vi.fn(),
-}));
+  FakeStudentCampDateConflict,
+} = vi.hoisted(() => {
+  class FakeStudentCampDateConflict extends Error {}
+  return {
+    getUser: vi.fn(),
+    listStudents: vi.fn(),
+    createStudent: vi.fn(),
+    updateStudent: vi.fn(),
+    deleteStudent: vi.fn(),
+    FakeStudentCampDateConflict,
+  };
+});
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser } }),
@@ -23,6 +28,7 @@ vi.mock("@/lib/repositories/students", () => ({
   createStudent,
   updateStudent,
   deleteStudent,
+  StudentCampDateConflictError: FakeStudentCampDateConflict,
 }));
 
 import { GET, POST } from "@/app/api/students/route";
@@ -207,6 +213,26 @@ describe("individual student API", () => {
     );
 
     expect(response.status).toBe(500);
+  });
+
+  test("maps a camp start date conflict to 409", async () => {
+    updateStudent.mockResolvedValue({
+      data: null,
+      error: new FakeStudentCampDateConflict("conflict"),
+    });
+
+    const response = await PATCH(
+      new Request(`https://app.example/api/students/${studentId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ campStartDate: "2026-07-20" }),
+      }),
+      context,
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Camp start date conflicts with existing records or documents",
+    });
   });
 
   test("returns 404 when an owner-scoped delete finds no student", async () => {

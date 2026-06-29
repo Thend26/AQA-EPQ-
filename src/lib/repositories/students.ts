@@ -22,6 +22,15 @@ type RepositoryResult<T> = {
   error: { message: string } | null;
 };
 
+export class StudentCampDateConflictError extends Error {
+  readonly code = "student_camp_date_conflict";
+
+  constructor() {
+    super("Camp start date conflicts with existing records or documents");
+    this.name = "StudentCampDateConflictError";
+  }
+}
+
 export function studentInsert(ownerId: string, input: StudentInput) {
   return {
     owner_id: ownerId,
@@ -119,9 +128,14 @@ export async function updateStudent(
     .select("*")
     .maybeSingle();
 
+  const error =
+    result.error?.code === "PSC01"
+      ? new StudentCampDateConflictError()
+      : result.error;
+
   return {
     data: result.data ? studentFromRow(result.data as StudentRow) : null,
-    error: result.error,
+    error,
   };
 }
 
