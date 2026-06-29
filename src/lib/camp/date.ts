@@ -29,9 +29,9 @@ function formatCalendarDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function campDayForDate(date: string, campStartDate: string) {
-  const current = calendarDateUtc(date);
+export function campDayForDate(campStartDate: string, date: string) {
   const start = calendarDateUtc(campStartDate);
+  const current = calendarDateUtc(date);
   if (!current || !start || current < start) return null;
 
   return Math.round((current.getTime() - start.getTime()) / DAY_IN_MS) + 1;

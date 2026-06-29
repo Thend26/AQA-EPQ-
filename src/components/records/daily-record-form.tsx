@@ -119,7 +119,7 @@ function DailyRecordFormFields({
   );
   const storage = useMemo(() => getBrowserStorage(), []);
   const campDay = useMemo(
-    () => campDayForDate(date, campStartDate),
+    () => campDayForDate(campStartDate, date),
     [campStartDate, date],
   );
   const isLocked = campDay === null;

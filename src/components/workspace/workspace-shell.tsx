@@ -113,7 +113,7 @@ export function WorkspaceShell({
   );
 
   const selectedCampDay = selectedStudent
-    ? campDayForDate(date, selectedStudent.campStartDate)
+    ? campDayForDate(selectedStudent.campStartDate, date)
     : null;
   const currentDailyRecordId =
     selectedCampDay === null
