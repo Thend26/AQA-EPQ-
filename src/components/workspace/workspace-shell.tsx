@@ -4,6 +4,7 @@ import { type CSSProperties, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { FeedbackAssistant } from "@/components/feedback/feedback-assistant";
+import { DocumentPanel } from "@/components/documents/document-panel";
 import {
   DailyRecordForm,
   type SavedDailyRecord,
@@ -57,6 +58,7 @@ type WorkspaceShellProps = {
   feedback: LoadedFeedback | null;
   feedbackHistory: HistoryItem[];
   settings?: UserSettings;
+  documentsEnabled?: boolean;
   navigate?: (
     href: string,
     options?: { replace?: boolean },
@@ -89,6 +91,7 @@ export function WorkspaceShell({
   feedback,
   feedbackHistory,
   settings = defaultUserSettings,
+  documentsEnabled = false,
   navigate,
 }: WorkspaceShellProps) {
   const [activeSettings, setActiveSettings] = useState<UserSettings>(settings);
@@ -397,6 +400,12 @@ export function WorkspaceShell({
                   }
                 />
               </section>
+              {documentsEnabled ? (
+                <DocumentPanel
+                  studentId={selectedStudent.id!}
+                  campDay={selectedCampDay}
+                />
+              ) : null}
             </>
           ) : (
             <section className="grid min-h-72 place-items-center rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-center">

@@ -99,3 +99,59 @@ export async function createStudentDocument(
     error: result.error,
   };
 }
+
+export async function getDocumentForOwner(
+  db: SupabaseClient,
+  ownerId: string,
+  documentId: string,
+): Promise<RepositoryResult<StudentDocument>> {
+  const result = await db
+    .from("student_documents")
+    .select("*")
+    .eq("owner_id", ownerId)
+    .eq("id", documentId)
+    .maybeSingle();
+
+  return {
+    data: result.data ? documentFromRow(result.data as StudentDocumentRow) : null,
+    error: result.error,
+  };
+}
+
+export async function retryDocumentJob(
+  db: SupabaseClient,
+  ownerId: string,
+  documentId: string,
+): Promise<{ ok: boolean; error: { message: string } | null }> {
+  const job = await db
+    .from("document_jobs")
+    .upsert(
+      {
+        owner_id: ownerId,
+        document_id: documentId,
+        status: "queued",
+        locked_at: null,
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "document_id,owner_id" },
+    );
+  return { ok: !job.error, error: job.error };
+}
+
+export async function markStudentDocumentDeleted(
+  db: SupabaseClient,
+  ownerId: string,
+  documentId: string,
+): Promise<RepositoryResult<StudentDocument> & { notFound: boolean }> {
+  const result = await db.rpc("mark_student_document_deleted", {
+    p_owner_id: ownerId,
+    p_document_id: documentId,
+  });
+  const row = (result.data as StudentDocumentRow[] | null)?.[0];
+  return {
+    data: row ? documentFromRow(row) : null,
+    error: result.error,
+    notFound: !row && !result.error,
+  };
+}

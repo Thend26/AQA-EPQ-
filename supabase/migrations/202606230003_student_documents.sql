@@ -63,7 +63,8 @@ create table public.document_jobs (
   constraint document_jobs_document_owner_fk
     foreign key (document_id, owner_id)
     references public.student_documents (id, owner_id)
-    on delete cascade
+    on delete cascade,
+  unique (owner_id, document_id)
 );
 
 create table public.document_ao_analyses (

@@ -117,6 +117,7 @@ export default async function WorkspacePage({
       feedback={feedback}
       feedbackHistory={feedbackHistory}
       settings={settingsResult.data ?? undefined}
+      documentsEnabled
     />
   );
 }
