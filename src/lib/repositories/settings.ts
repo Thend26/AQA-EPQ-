@@ -20,6 +20,10 @@ type RepositoryResult<T> = {
   error: { message: string; code?: string } | null;
 };
 
+function isMissingSettingsTable(error: { code?: string } | null) {
+  return error?.code === "42P01";
+}
+
 function fromRow(row: SettingsRow | null): UserSettings {
   if (!row) return defaultUserSettings;
   return {
@@ -55,7 +59,7 @@ export async function getUserSettings(
 
   return {
     data: fromRow(result.data as SettingsRow | null),
-    error: result.error,
+    error: isMissingSettingsTable(result.error) ? null : result.error,
   };
 }
 
