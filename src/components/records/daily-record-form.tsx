@@ -38,6 +38,10 @@ type DailyRecordFormProps = {
       "ao1Note" | "ao2Note" | "ao3Note" | "ao4Note"
     >>;
   } | null;
+  externalRecordPatch?: {
+    id: string;
+    values: Partial<DailyRecordDraftValues>;
+  } | null;
 };
 
 export type SavedDailyRecord = DailyRecord & { id: string; revision?: number };
@@ -116,6 +120,7 @@ function DailyRecordFormFields({
   onSaved,
   onDraftChange,
   externalAoPatch,
+  externalRecordPatch,
 }: DailyRecordFormProps) {
   const key = useMemo(
     () => draftKey(ownerId, studentId, date),
@@ -151,6 +156,7 @@ function DailyRecordFormFields({
       ?.revision ?? null,
   );
   const appliedExternalAoPatchRef = useRef<string | null>(null);
+  const appliedExternalRecordPatchRef = useRef<string | null>(null);
 
   function replaceValues(next: DailyRecordDraftValues) {
     if (isLocked) return;
@@ -187,6 +193,20 @@ function DailyRecordFormFields({
     replaceValues({ ...values, ...externalAoPatch.values });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalAoPatch]);
+
+  useEffect(() => {
+    if (
+      !externalRecordPatch ||
+      appliedExternalRecordPatchRef.current === externalRecordPatch.id
+    ) {
+      return;
+    }
+    appliedExternalRecordPatchRef.current = externalRecordPatch.id;
+    const safeValues = { ...externalRecordPatch.values };
+    delete safeValues.processNotes;
+    replaceValues({ ...values, ...safeValues });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalRecordPatch]);
 
   function toggleBehaviorTag(tag: string, checked: boolean) {
     const behaviorTags = checked

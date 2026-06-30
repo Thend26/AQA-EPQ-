@@ -48,7 +48,7 @@ export function StudentList({
   return (
     <section aria-label="学生档案">
       <p className="mb-3 text-sm leading-6 text-stone-600">
-        建议管理 1–10 名学生；当前 {students.length} 名，首版上限 10 名。
+        建议管理 1–30 名学生；当前 {students.length} 名，上限 30 名。
       </p>
       {students.length === 0 ? (
         <p className="rounded-xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">

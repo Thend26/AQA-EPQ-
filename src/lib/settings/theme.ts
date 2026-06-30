@@ -31,6 +31,34 @@ const presets = {
     surface: "#f7fee7",
     text: "#052e16",
   },
+  lavender: {
+    primary: "#4f46e5",
+    primarySoft: "#e0e7ff",
+    accent: "#f97316",
+    surface: "#f8fafc",
+    text: "#111827",
+  },
+  graphite: {
+    primary: "#111827",
+    primarySoft: "#e5e7eb",
+    accent: "#38bdf8",
+    surface: "#f8fafc",
+    text: "#0f172a",
+  },
+  rose: {
+    primary: "#9f1239",
+    primarySoft: "#ffe4e6",
+    accent: "#2563eb",
+    surface: "#fff7f9",
+    text: "#1f2937",
+  },
+  mint: {
+    primary: "#047857",
+    primarySoft: "#d1fae5",
+    accent: "#f59e0b",
+    surface: "#f8fafc",
+    text: "#064e3b",
+  },
 } as const;
 
 const fontScales = {

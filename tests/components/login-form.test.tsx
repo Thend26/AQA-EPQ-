@@ -5,14 +5,16 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { LoginForm } from "@/components/auth/login-form";
 
 const push = vi.fn();
+const replace = vi.fn();
 const refresh = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh }),
+  useRouter: () => ({ push, replace, refresh }),
 }));
 
 beforeEach(() => {
   push.mockReset();
+  replace.mockReset();
   refresh.mockReset();
 });
 
@@ -53,7 +55,7 @@ test("shows a failed login error and preserves the entered email", async () => {
   expect(refresh).not.toHaveBeenCalled();
 });
 
-test("navigates to the workspace and refreshes after successful login", async () => {
+test("shows a transition screen and replaces history after successful login", async () => {
   const user = userEvent.setup();
 
   render(
@@ -67,8 +69,12 @@ test("navigates to the workspace and refreshes after successful login", async ()
   await user.type(screen.getByLabelText("密码"), "correct-password");
   await user.click(screen.getByRole("button", { name: "登录" }));
 
-  expect(push).toHaveBeenCalledWith("/workspace");
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "正在进入工作台",
+  );
+  expect(replace).toHaveBeenCalledWith("/workspace");
   expect(refresh).toHaveBeenCalledOnce();
+  expect(push).not.toHaveBeenCalled();
 });
 
 test("recovers from an unexpected sign-in exception and preserves input", async () => {

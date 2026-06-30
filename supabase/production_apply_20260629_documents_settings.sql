@@ -4,7 +4,7 @@
 create table if not exists public.user_settings (
   owner_id uuid primary key references auth.users(id) on delete cascade,
   theme_preset text not null default 'professional'
-    check (theme_preset in ('professional', 'ocean', 'sunrise', 'forest', 'custom')),
+    check (theme_preset in ('professional', 'ocean', 'sunrise', 'forest', 'lavender', 'graphite', 'rose', 'mint', 'custom')),
   custom_primary text,
   custom_accent text,
   font_scale text not null default 'medium'
@@ -23,6 +23,25 @@ create table if not exists public.user_settings (
 );
 
 alter table public.user_settings enable row level security;
+
+alter table public.user_settings
+  drop constraint if exists user_settings_theme_preset_check;
+
+alter table public.user_settings
+  add constraint user_settings_theme_preset_check
+  check (
+    theme_preset in (
+      'professional',
+      'ocean',
+      'sunrise',
+      'forest',
+      'lavender',
+      'graphite',
+      'rose',
+      'mint',
+      'custom'
+    )
+  );
 
 do $$
 begin

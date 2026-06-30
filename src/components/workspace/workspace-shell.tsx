@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, useMemo, useState } from "react";
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 
 import { FeedbackAssistant } from "@/components/feedback/feedback-assistant";
@@ -19,6 +19,7 @@ import { AqaOverview } from "@/components/workspace/aqa-overview";
 import { createFeedbackAdapters } from "@/components/workspace/feedback-adapters";
 import { campDayForDate } from "@/lib/camp/date";
 import type { GeneratedFeedback } from "@/lib/deepseek/schema";
+import type { DocumentRecordDraftResponse } from "@/lib/documents/record-draft-schema";
 import type {
   DailyRecord,
   DailyRecordObservationDraft,
@@ -71,6 +72,10 @@ const emptyDraft: GeneratedFeedback = {
   zh: { content: "", evidenceUsed: [], nextStep: "" },
 };
 
+const MAX_STUDENTS = 30;
+const IDLE_WARNING_MS = 115 * 60 * 1000;
+const IDLE_LOGOUT_MS = 120 * 60 * 1000;
+
 const studentResponseSchema = z.object({ data: studentSchema });
 const deletedStudentResponseSchema = z.object({
   data: z.object({ id: z.string().min(1) }),
@@ -113,12 +118,20 @@ export function WorkspaceShell({
     id: string;
     values: AoNotePatch;
   } | null>(null);
+  const [externalRecordPatch, setExternalRecordPatch] = useState<{
+    identity: string;
+    id: string;
+    values: Partial<DocumentRecordDraftResponse>;
+  } | null>(null);
   const [logoutError, setLogoutError] = useState("");
   const [logoutPending, setLogoutPending] = useState(false);
   const [navigationPending, setNavigationPending] = useState(false);
+  const [idleWarning, setIdleWarning] = useState(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(
     null,
   );
+  const idleWarningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleLogoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const go = useMemo(
     () =>
       navigate ??
@@ -222,6 +235,42 @@ export function WorkspaceShell({
     }
   }
 
+  useEffect(() => {
+    function clearIdleTimers() {
+      if (idleWarningTimerRef.current) {
+        clearTimeout(idleWarningTimerRef.current);
+      }
+      if (idleLogoutTimerRef.current) {
+        clearTimeout(idleLogoutTimerRef.current);
+      }
+    }
+
+    function scheduleIdleTimers() {
+      clearIdleTimers();
+      setIdleWarning(false);
+      idleWarningTimerRef.current = setTimeout(() => {
+        setIdleWarning(true);
+      }, IDLE_WARNING_MS);
+      idleLogoutTimerRef.current = setTimeout(() => {
+        void logout();
+      }, IDLE_LOGOUT_MS);
+    }
+
+    const events = ["mousemove", "keydown", "pointerdown", "touchstart"];
+    events.forEach((eventName) =>
+      window.addEventListener(eventName, scheduleIdleTimers, { passive: true }),
+    );
+    scheduleIdleTimers();
+
+    return () => {
+      clearIdleTimers();
+      events.forEach((eventName) =>
+        window.removeEventListener(eventName, scheduleIdleTimers),
+      );
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function saveSettings(nextSettings: UserSettings) {
     const response = await fetch("/api/settings", {
       method: "PATCH",
@@ -235,10 +284,10 @@ export function WorkspaceShell({
   return (
     <ThemeProvider settings={activeSettings}>
     <div
-      className="min-h-screen overflow-x-hidden bg-[var(--theme-surface)] text-[var(--theme-text)]"
+      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,var(--theme-primary-soft),transparent_34%),var(--theme-surface)] text-[var(--theme-text)] transition-colors duration-500"
       style={variables}
     >
-      <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 bg-[var(--theme-primary)] px-4 py-3 text-white sm:px-6">
+      <header className="sticky top-0 z-40 flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-white/20 bg-[var(--theme-primary)]/95 px-4 py-3 text-white shadow-lg shadow-slate-950/10 backdrop-blur-xl sm:px-6">
         <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-[0.2em] text-blue-100">
             EPQ Camp Companion
@@ -288,6 +337,19 @@ export function WorkspaceShell({
         </div>
       ) : null}
 
+      {idleWarning ? (
+        <div
+          role="status"
+          aria-label="空闲退出提醒"
+          className="fixed bottom-4 right-4 z-50 max-w-sm rounded-3xl border border-amber-200 bg-white/90 p-4 text-sm text-amber-950 shadow-2xl backdrop-blur"
+        >
+          <p className="font-semibold">即将自动退出登录</p>
+          <p className="mt-1 leading-6">
+            工作台已长时间未操作。移动鼠标、点击或按键即可继续保持登录。
+          </p>
+        </div>
+      ) : null}
+
       {settingsOpen ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 p-4">
           <div className="mx-auto max-w-2xl">
@@ -300,21 +362,21 @@ export function WorkspaceShell({
         </div>
       ) : null}
 
-      <div className="grid min-h-[calc(100vh-4rem)] grid-cols-1 overflow-x-hidden xl:grid-cols-[14rem_minmax(30rem,1fr)_23rem]">
+      <div className="motion-soft-enter grid min-h-[calc(100vh-4rem)] grid-cols-1 overflow-x-hidden xl:grid-cols-[15rem_minmax(30rem,1fr)_24rem]">
         <nav
           aria-label="学生档案"
-          className="min-w-0 border-b border-stone-200 bg-white p-4 xl:border-b-0 xl:border-r"
+          className="min-w-0 border-b border-white/60 bg-white/80 p-4 shadow-sm backdrop-blur-xl xl:border-b-0 xl:border-r"
         >
           <button
             type="button"
             className="mb-4 w-full rounded-xl bg-orange-500 px-4 py-2 font-semibold text-white hover:bg-orange-600"
-            disabled={students.length >= 10}
+            disabled={students.length >= MAX_STUDENTS}
             onClick={() => {
               setEditing(null);
               setPanelOpen(true);
             }}
           >
-            {students.length >= 10 ? "已达到 10 名上限" : "新增学生"}
+            {students.length >= MAX_STUDENTS ? "已达到 30 名上限" : "新增学生"}
           </button>
           <StudentList
             students={students}
@@ -331,7 +393,7 @@ export function WorkspaceShell({
         <main className="min-w-0 space-y-5 p-4 sm:p-6">
           {selectedStudent ? (
             <>
-              <section className="rounded-2xl bg-[var(--theme-primary)] p-5 text-white shadow-sm">
+              <section className="rounded-[2rem] bg-[var(--theme-primary)] p-5 text-white shadow-xl shadow-slate-950/10 transition-all duration-300">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm text-blue-100">
@@ -391,7 +453,7 @@ export function WorkspaceShell({
                 ) : null}
               </section>
               <AqaOverview record={liveRecord} />
-              <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <section className="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-950/5 backdrop-blur">
                 <h2 className="mb-4 text-lg font-semibold">当日记录</h2>
                 <DailyRecordForm
                   ownerId={ownerId}
@@ -418,6 +480,14 @@ export function WorkspaceShell({
                         }
                       : null
                   }
+                  externalRecordPatch={
+                    externalRecordPatch?.identity === recordIdentity
+                      ? {
+                          id: externalRecordPatch.id,
+                          values: externalRecordPatch.values,
+                        }
+                      : null
+                  }
                 />
               </section>
               {documentsEnabled ? (
@@ -430,6 +500,13 @@ export function WorkspaceShell({
                     setExternalAoPatch({
                       identity: recordIdentity,
                       id: `${recordIdentity}:${Date.now()}`,
+                      values,
+                    })
+                  }
+                  onApplyRecordDraft={(values) =>
+                    setExternalRecordPatch({
+                      identity: recordIdentity,
+                      id: `${recordIdentity}:record:${Date.now()}`,
                       values,
                     })
                   }
@@ -449,7 +526,7 @@ export function WorkspaceShell({
 
           <section
             aria-label="学生档案编辑面板"
-            className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"
+            className="rounded-[2rem] border border-white/70 bg-white/85 p-5 shadow-xl shadow-slate-950/5 backdrop-blur"
           >
             {panelOpen ? (
               <>
@@ -484,7 +561,7 @@ export function WorkspaceShell({
 
         <aside
           aria-label="AI 反馈助手"
-          className="min-w-0 border-t border-stone-200 bg-stone-50 p-4 xl:border-l xl:border-t-0"
+          className="min-w-0 border-t border-white/60 bg-white/60 p-4 backdrop-blur-xl xl:border-l xl:border-t-0"
         >
           {selectedStudent ? (
             <>

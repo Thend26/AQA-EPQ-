@@ -59,14 +59,7 @@ function LoginPageContent() {
               把每天的学生成果、过程证据和 AO 观察沉淀成连续反馈，让营地工作更稳、更清楚。
             </p>
           </div>
-          <div className="mt-8 grid gap-3 text-sm text-blue-50">
-            <p className="rounded-2xl bg-white/10 p-4">
-              蓝橙专业配色 · 适合投屏和现场快速操作
-            </p>
-            <p className="rounded-2xl bg-white/10 p-4">
-              邮箱验证后登录 · 每位助教独立管理学生档案
-            </p>
-          </div>
+          <div aria-hidden="true" className="mt-8 h-24 rounded-[2rem] bg-white/10 blur-2xl" />
         </div>
         <div className="flex items-center p-6 sm:p-10">
           <div className="w-full">

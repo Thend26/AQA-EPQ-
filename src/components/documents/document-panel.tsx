@@ -8,6 +8,10 @@ import {
 } from "@/components/documents/ao-analysis-review";
 import { MAX_DOCUMENT_BYTES, validateDocumentMetadata } from "@/lib/documents/file-validation";
 import { aoAnalysisResponseSchema, type AoAnalysisResponse } from "@/lib/documents/ao-schema";
+import {
+  documentRecordDraftResponseSchema,
+  type DocumentRecordDraftResponse,
+} from "@/lib/documents/record-draft-schema";
 import { createClient } from "@/lib/supabase/client";
 import { requestWorkspaceJson } from "@/lib/workspace/api";
 import { z } from "zod";
@@ -24,6 +28,7 @@ const createSchema = z.object({
 });
 const downloadSchema = z.object({ url: z.string().url() });
 const aoAnalysisSchema = z.object({ data: aoAnalysisResponseSchema });
+const recordDraftSchema = z.object({ data: documentRecordDraftResponseSchema });
 
 type DocumentItem = z.output<typeof documentSchema>;
 
@@ -33,18 +38,21 @@ export function DocumentPanel({
   recordDate,
   existingAoNotes = {},
   onApplyAoSuggestions,
+  onApplyRecordDraft,
 }: {
   studentId: string;
   campDay: number | null;
   recordDate?: string;
   existingAoNotes?: AoNotePatch;
   onApplyAoSuggestions?: (patch: AoNotePatch) => void;
+  onApplyRecordDraft?: (patch: DocumentRecordDraftResponse) => void;
 }) {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
   const [analysisPending, setAnalysisPending] = useState(false);
+  const [recordDraftPending, setRecordDraftPending] = useState(false);
   const [analysis, setAnalysis] = useState<AoAnalysisResponse | null>(null);
   const locked = campDay === null;
   const hasExtractedDocument = documents.some(
@@ -167,6 +175,38 @@ export function DocumentPanel({
     }
   }
 
+  async function generateRecordDraft() {
+    if (
+      !recordDate ||
+      locked ||
+      campDay === null ||
+      recordDraftPending ||
+      !hasExtractedDocument
+    ) {
+      return;
+    }
+    setMessage("");
+    setRecordDraftPending(true);
+    try {
+      const result = await requestWorkspaceJson(
+        fetch,
+        "/api/document-record-draft",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentId, recordDate, campDay }),
+        },
+        recordDraftSchema,
+      );
+      onApplyRecordDraft?.(result.data);
+      setMessage("已根据文档自动填写当日记录草稿，请检查后再生成反馈");
+    } catch {
+      setMessage("自动填写失败，请确认文档已解析且 DeepSeek 已配置");
+    } finally {
+      setRecordDraftPending(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold">学生文档</h2>
@@ -211,16 +251,26 @@ export function DocumentPanel({
       </ul>
       <div className="mt-4 rounded-xl bg-stone-50 p-3">
         <p className="text-sm text-stone-600">
-          文档状态为 extracted 后，可让 DeepSeek 生成 AO1–AO4 当日观察草稿。
+          文档状态为 extracted 后，可让 DeepSeek 自动填写当日记录草稿，并继续生成 AO1–AO4 观察建议。
         </p>
-        <button
-          type="button"
-          disabled={!recordDate || locked || !hasExtractedDocument || analysisPending}
-          className="mt-3 rounded-xl bg-blue-700 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={() => void generateAoAnalysis()}
-        >
-          {analysisPending ? "生成中…" : "生成 AO 观察建议"}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={!recordDate || locked || !hasExtractedDocument || recordDraftPending}
+            className="rounded-xl bg-[var(--theme-primary)] px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => void generateRecordDraft()}
+          >
+            {recordDraftPending ? "填写中…" : "AI 自动填写当日记录"}
+          </button>
+          <button
+            type="button"
+            disabled={!recordDate || locked || !hasExtractedDocument || analysisPending}
+            className="rounded-xl bg-blue-700 px-4 py-2.5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => void generateAoAnalysis()}
+          >
+            {analysisPending ? "生成中…" : "生成 AO 观察建议"}
+          </button>
+        </div>
       </div>
       {analysis ? (
         <AoAnalysisReview

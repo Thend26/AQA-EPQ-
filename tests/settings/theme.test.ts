@@ -39,6 +39,25 @@ describe("theme settings", () => {
     expect(variables["--font-weight"]).toBe("700");
   });
 
+  test("supports additional calm Apple-like theme presets", () => {
+    expect(
+      themeVariables({
+        themePreset: "lavender",
+        fontScale: "medium",
+        fontWeight: "medium",
+        deepseekModel: "chat",
+      })["--theme-primary"],
+    ).toBe("#4f46e5");
+    expect(
+      themeVariables({
+        themePreset: "graphite",
+        fontScale: "medium",
+        fontWeight: "medium",
+        deepseekModel: "chat",
+      })["--theme-accent"],
+    ).toBe("#38bdf8");
+  });
+
   test("rejects invalid hex colors and low-contrast combinations", () => {
     expect(() =>
       themeVariables({

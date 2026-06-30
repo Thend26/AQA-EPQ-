@@ -20,6 +20,7 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [pending, setPending] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
 
   function selectMode(nextMode: "login" | "register") {
     setMode(nextMode);
@@ -67,7 +68,8 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
         return;
       }
 
-      router.push("/workspace");
+      setTransitioning(true);
+      router.replace("/workspace");
       router.refresh();
     } catch {
       setError(
@@ -87,7 +89,28 @@ export function LoginForm({ signIn, signUp }: LoginFormProps) {
         : "登录"
       : pending
         ? "注册中…"
-        : "创建账号";
+      : "创建账号";
+
+  if (transitioning) {
+    return (
+      <div
+        role="status"
+        className="grid min-h-72 place-items-center rounded-3xl bg-blue-50 p-8 text-center"
+      >
+        <div>
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-white shadow-sm">
+            <LoadingSpinner />
+          </div>
+          <p className="text-lg font-semibold text-blue-950">
+            正在进入工作台
+          </p>
+          <p className="mt-2 text-sm leading-6 text-blue-800">
+            正在同步登录状态并打开你的 EPQ 工作区…
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

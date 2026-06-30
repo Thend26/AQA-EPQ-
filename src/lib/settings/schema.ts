@@ -9,6 +9,10 @@ export const themePresetSchema = z.enum([
   "ocean",
   "sunrise",
   "forest",
+  "lavender",
+  "graphite",
+  "rose",
+  "mint",
   "custom",
 ]);
 export const fontScaleSchema = z.enum(["small", "medium", "large"]);

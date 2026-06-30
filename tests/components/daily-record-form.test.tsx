@@ -153,6 +153,55 @@ test("applies external AO suggestions into the draft", () => {
   );
 });
 
+test("applies an external document draft without replacing tutor process notes", () => {
+  const { rerender } = render(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      campStartDate={campStartDate}
+      save={async () => {}}
+    />,
+  );
+
+  fireEvent.change(screen.getByLabelText("助教过程观察"), {
+    target: { value: "现场观察：学生主动向助教确认研究范围。" },
+  });
+
+  rerender(
+    <DailyRecordForm
+      ownerId={ownerId}
+      studentId={studentId}
+      date={date}
+      campStartDate={campStartDate}
+      save={async () => {}}
+      externalRecordPatch={{
+        id: "record-draft-1",
+        values: {
+          achievements: "整理了研究问题和初步资料",
+          evidence: "上传文档包含研究问题页",
+          challenges: "资料筛选标准还不够清晰",
+          nextPlan: "明天完成来源可靠性比较",
+          behaviorTags: ["按时完成"],
+          ao1Note: "能把研究问题拆成可推进任务。",
+          ao2Note: "开始使用来源支持判断。",
+          ao3Note: "已有初步产出。",
+          ao4Note: "能意识到资料标准需复盘。",
+          processNotes: "这句话不应覆盖助教观察",
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByLabelText("今日完成成果")).toHaveValue(
+    "整理了研究问题和初步资料",
+  );
+  expect(screen.getByLabelText("助教过程观察")).toHaveValue(
+    "现场观察：学生主动向助教确认研究范围。",
+  );
+  expect(screen.getByRole("checkbox", { name: "按时完成" })).toBeChecked();
+});
+
 test("debounces a valid cloud save by 800ms and reports success", async () => {
   vi.useFakeTimers();
   const save = vi.fn().mockResolvedValue(undefined);

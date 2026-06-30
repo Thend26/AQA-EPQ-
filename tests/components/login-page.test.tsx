@@ -137,4 +137,6 @@ test("renders the professional blue-orange login shell", () => {
   expect(screen.getByRole("button", { name: "登录" })).toHaveClass(
     "bg-orange-500",
   );
+  expect(screen.queryByText(/蓝橙专业配色/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/邮箱验证后登录/)).not.toBeInTheDocument();
 });

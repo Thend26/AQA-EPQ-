@@ -25,7 +25,7 @@ test("shows an empty state and the suggested student count", () => {
   );
 
   expect(screen.getByText("还没有学生档案")).toBeInTheDocument();
-  expect(screen.getByText(/建议管理 1–10 名学生/)).toBeInTheDocument();
+  expect(screen.getByText(/建议管理 1–30 名学生/)).toBeInTheDocument();
 });
 
 test("selects and edits a student", async () => {

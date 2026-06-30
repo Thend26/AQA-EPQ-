@@ -152,3 +152,68 @@ test("generates and applies AO observation suggestions", async () => {
     expect.objectContaining({ ao1Note: "AO1 建议" }),
   );
 });
+
+test("generates and applies a document-based daily record draft", async () => {
+  const user = userEvent.setup();
+  const onApplyRecordDraft = vi.fn();
+  vi.spyOn(globalThis, "fetch")
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: "doc-1", originalFilename: "proposal.pdf", status: "extracted" },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    )
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            achievements: "完成研究问题草稿",
+            evidence: "文档中列出研究问题",
+            challenges: "变量定义仍需收窄",
+            nextPlan: "明天完成资料筛选表",
+            behaviorTags: ["按时完成"],
+            ao1Note: "AO1 草稿",
+            ao2Note: "AO2 草稿",
+            ao3Note: "AO3 草稿",
+            ao4Note: "AO4 草稿",
+          },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+  render(
+    <DocumentPanel
+      studentId="student-1"
+      campDay={3}
+      recordDate="2026-07-18"
+      onApplyRecordDraft={onApplyRecordDraft}
+    />,
+  );
+
+  await user.click(
+    await screen.findByRole("button", { name: "AI 自动填写当日记录" }),
+  );
+
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/document-record-draft",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({
+        studentId: "student-1",
+        recordDate: "2026-07-18",
+        campDay: 3,
+      }),
+    }),
+  );
+  expect(onApplyRecordDraft).toHaveBeenCalledWith(
+    expect.objectContaining({
+      achievements: "完成研究问题草稿",
+    }),
+  );
+  expect(onApplyRecordDraft.mock.calls[0]?.[0]).not.toHaveProperty("processNotes");
+});

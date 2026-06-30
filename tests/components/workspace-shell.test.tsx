@@ -59,13 +59,56 @@ test("renders responsive students, record, and AI regions without horizontal ove
   ).toBeInTheDocument();
   expect(screen.getByRole("main").parentElement).toHaveClass(
     "grid-cols-1",
-    "xl:grid-cols-[14rem_minmax(30rem,1fr)_23rem]",
+    "xl:grid-cols-[15rem_minmax(30rem,1fr)_24rem]",
     "overflow-x-hidden",
   );
   expect(screen.getByRole("banner")).toHaveClass("flex-wrap");
   expect(screen.getByTestId("workspace-date-controls")).toHaveClass(
     "grid-cols-[2.75rem_minmax(0,1fr)_2.75rem]",
   );
+});
+
+test("allows up to 30 students before disabling new student creation", () => {
+  const thirtyStudents = Array.from({ length: 30 }, (_, index) => ({
+    ...student,
+    id: `123e4567-e89b-42d3-a456-4266141740${String(index).padStart(2, "0")}`,
+    displayName: `学生 ${index + 1}`,
+  }));
+
+  render(
+    <WorkspaceShell
+      {...baseProps}
+      students={thirtyStudents}
+      selectedStudent={thirtyStudents[0]}
+    />,
+  );
+
+  expect(screen.getByRole("button", { name: "已达到 30 名上限" })).toBeDisabled();
+});
+
+test("warns and signs out after long workspace inactivity", async () => {
+  vi.useFakeTimers();
+  const navigate = vi.fn();
+  const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(null, { status: 204 }),
+  );
+
+  render(<WorkspaceShell {...baseProps} navigate={navigate} />);
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(115 * 60 * 1000);
+  });
+
+  expect(screen.getByRole("status", { name: "空闲退出提醒" })).toHaveTextContent(
+    "即将自动退出登录",
+  );
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+  });
+
+  expect(fetcher).toHaveBeenCalledWith("/auth/signout", { method: "POST" });
+  expect(navigate).toHaveBeenCalledWith("/login");
 });
 
 test("shows an addable empty state when there are no students", async () => {

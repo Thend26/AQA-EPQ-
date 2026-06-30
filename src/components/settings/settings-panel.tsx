@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   defaultUserSettings,
@@ -19,8 +19,18 @@ const presets = [
   ["ocean", "海洋蓝"],
   ["sunrise", "日出橙"],
   ["forest", "森林绿"],
+  ["lavender", "薰衣草"],
+  ["graphite", "石墨黑"],
+  ["rose", "玫瑰红"],
+  ["mint", "薄荷绿"],
   ["custom", "自定义"],
 ] as const;
+
+type DeepSeekKeyStatus = {
+  configured: boolean;
+  last4?: string;
+  updatedAt?: string;
+};
 
 export function SettingsPanel({
   initialSettings = defaultUserSettings,
@@ -30,6 +40,7 @@ export function SettingsPanel({
   const [settings, setSettings] = useState<UserSettings>(initialSettings);
   const [error, setError] = useState("");
   const [keyMessage, setKeyMessage] = useState("");
+  const [keyStatus, setKeyStatus] = useState<DeepSeekKeyStatus | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [pending, setPending] = useState(false);
   const variables = useMemo(() => {
@@ -44,6 +55,26 @@ export function SettingsPanel({
     setSettings((current) => ({ ...current, [key]: value }));
     setError("");
   }
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadKeyStatus() {
+      try {
+        const response = await fetch("/api/settings/deepseek-key", {
+          method: "GET",
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as { data?: DeepSeekKeyStatus };
+        if (!cancelled) setKeyStatus(payload.data ?? { configured: false });
+      } catch {
+        if (!cancelled) setKeyStatus({ configured: false });
+      }
+    }
+    void loadKeyStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function save() {
     setError("");
@@ -91,6 +122,8 @@ export function SettingsPanel({
       setError("DeepSeek Key 保存失败，请稍后重试");
       return;
     }
+    const payload = (await response.json()) as { data?: DeepSeekKeyStatus };
+    setKeyStatus(payload.data ?? { configured: true });
     setApiKey("");
     setKeyMessage("DeepSeek Key 已保存");
   }
@@ -118,6 +151,7 @@ export function SettingsPanel({
       setError("DeepSeek Key 删除失败，请稍后重试");
       return;
     }
+    setKeyStatus({ configured: false });
     setKeyMessage("DeepSeek Key 已删除");
   }
 
@@ -160,6 +194,7 @@ export function SettingsPanel({
             <label>
               主色
               <input
+                type="color"
                 value={settings.customPrimary ?? "#123c69"}
                 onChange={(event) => update("customPrimary", event.target.value)}
               />
@@ -167,6 +202,7 @@ export function SettingsPanel({
             <label>
               强调色
               <input
+                type="color"
                 value={settings.customAccent ?? "#f97316"}
                 onChange={(event) => update("customAccent", event.target.value)}
               />
@@ -221,6 +257,16 @@ export function SettingsPanel({
 
         <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
           <h3 className="font-semibold">个人 DeepSeek API Key</h3>
+          <div className="mt-3 rounded-2xl border border-white bg-white p-3 shadow-sm">
+            <p className="font-medium text-stone-900">
+              {keyStatus?.configured ? "DeepSeek API 已配置" : "DeepSeek API 未配置"}
+            </p>
+            <p className="mt-1 text-sm text-stone-600">
+              {keyStatus?.configured
+                ? `当前账号已保存个人 Key${keyStatus.last4 ? `，尾号 ${keyStatus.last4}` : ""}。`
+                : "保存个人 Key 后，文档分析和反馈生成会优先使用你的配置。"}
+            </p>
+          </div>
           <p className="mt-1 text-sm leading-6 text-stone-600">
             Key 会加密保存到你的账号设置中；页面不会回显完整 Key。
           </p>

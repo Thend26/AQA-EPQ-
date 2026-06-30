@@ -28,6 +28,8 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   font-size: calc(16px * var(--font-scale));
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -62,6 +64,13 @@ textarea {
 
 button {
   cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease,
+    transform 180ms ease;
 }
 
 button:disabled {
@@ -69,10 +78,47 @@ button:disabled {
   opacity: 0.55;
 }
 
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+input,
+select,
+textarea {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--theme-primary) 16%, transparent);
+  outline: none;
+}
+
 @keyframes loading-spin {
   to {
     transform: rotate(360deg);
   }
+}
+
+@keyframes soft-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.motion-soft-enter {
+  animation: soft-enter 260ms ease both;
 }
 
 .loading-spinner {
@@ -95,6 +141,15 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
   .loading-spinner {
     animation: none;
   }
